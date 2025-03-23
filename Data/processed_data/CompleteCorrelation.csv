@@ -1,0 +1,64 @@
+Variable,Correlation,P_Value
+LoadConsumption,1.0,0.0
+"Crude oil, WTI | ($/bbl)",-0.49888480851145767,2.1630289248698633e-08
+"Crude oil, average | ($/bbl)",-0.4777204880444038,1.0024506757454502e-07
+"Crude oil, Brent | ($/bbl)",-0.47210032694629533,1.4807769939889323e-07
+"Crude oil, Dubai | ($/bbl)",-0.4615846753955329,3.0162453976911235e-07
+"Natural gas, US | ($/mmbtu)",-0.4302109988043261,2.1987680769180357e-06
+Natural gas index | (2010=100),-0.4094328671880468,7.375957543525856e-06
+euro per m3.2_y,-0.3960178624240114,1.545414601809527e-05
+euro per m3.2_x,-0.3960178624240114,1.545414601809527e-05
+"Natural gas, Europe | ($/mmbtu)",-0.3827323149755282,3.1171033847747085e-05
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Overheid,0.3782254756848844,3.927961349607314e-05
+Year,0.34218273553230405,0.00022178069792120461
+"Coal, South African ** | ($/mt)",-0.31878274635089576,0.0006133057059334481
+CPI | 2015 = 100,0.3185443991100815,0.0006194380180091422
+"Coal, Australian | ($/mt)",-0.3087820607938674,0.0009246019196828272
+Gemiddelde verkoopprijs,0.3050664164901712,0.001073080119749226
+Prijsindex verkoopprijzen|Prijsindex bestaande koopwoningen,0.2912961572094218,0.0018327696238766612
+CPI afgeleid | 2015 = 100,0.28104233724251376,0.0026852150324712704
+Prijsindex verkoopprijzen|Ontwikkeling  t.o.v. een jaar eerder,0.2709778280661414,0.0038541116151513894
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Overheid,0.25407572681983137,0.006866908457372814
+euro per m3_y,0.25211420346222846,0.00732585194019408
+euro per m3_x,0.25211420346222846,0.00732585194019408
+Jaarmutatie CPI | %,-0.23665274425453753,0.011998325851828855
+euro per m3.1_y,0.22170371416134207,0.0188094887847069
+euro per m3.1_x,0.22170371416134207,0.0188094887847069
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Totaal,-0.2201514117013425,0.019678660435166164
+"Liquefied natural gas, Japan | ($/mmbtu)",-0.20898729523646714,0.027009471083694617
+Beroepsbevolking|werkloze beroepsbevolking|Kortdurig,-0.20805177801128763,0.027717705852115013
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Bedrijven en huishoudens,-0.20612469167288794,0.029226494647881733
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Totaal,-0.20472124547302242,0.030368676475910135
+Beroepsbevolking|Werkloosheidspercentage,-0.19622145637203572,0.03812396242409687
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Diensten,0.1947053851397007,0.039668564667017514
+Beroepsbevolking|werkloze beroepsbevolking|Werkloze beroepsbevolking,-0.1912146963233331,0.043424928814230115
+Jaarmutatie CPI afgeleid | %,-0.18973731840029348,0.04510170198048178
+Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Diensten,-0.18505870541809705,0.050770616163100996
+Beroepsbevolking|werkloze beroepsbevolking|Langdurig of onbekend,-0.15629512759035194,0.0998366312407204
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Totaal,0.14589185230800286,0.12481382798266777
+euro per kWh.2_x,-0.1424306545970336,0.13411165455135268
+euro per kWh.2_y,-0.1424306545970336,0.13411165455135268
+Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Goederen,0.12333822931228818,0.19511375917853205
+Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Totaal,-0.12229182007098453,0.19895896766582238
+Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Totaal,-0.10448681286981251,0.2729109804911395
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Totaal,-0.10448681286981251,0.2729109804911395
+euro per kWh.1_x,0.10266819766127927,0.2813917020260059
+euro per kWh.1_y,0.10266819766127927,0.2813917020260059
+Prijsindex verkoopprijzen|Ontwikkeling  t.o.v. voorgaande periode,0.09230494572771497,0.3330577115386484
+Month,-0.08952199651201248,0.34790035798850016
+Totale waarde verkoopprijzen,0.08116408530760238,0.39492019056731537
+Aantal verkochte woningen|Aantal verkochte woningen,0.07445615084023893,0.4352650067362703
+Aantal verkochte woningen|Ontwikkeling  t.o.v. een jaar eerder,-0.07187421154538158,0.4513978590759636
+"Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Bbp, gecorrigeerd voor werkdageneffecten",-0.0658183744154652,0.629838728614859
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden,0.052528780595906974,0.5822810568156711
+euro per kWh_x,0.04845248726501486,0.6119313307940835
+euro per kWh_y,0.04845248726501486,0.6119313307940835
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Goederen,0.04027776940463554,0.6732811981895566
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Huishoudens,-0.036787645962560823,0.7001732254903454
+Aantal verkochte woningen|Ontwikkeling  t.o.v. voorgaande periode,0.03661899307303054,0.7014824947695641
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Totaal,0.020566864865349987,0.8295800502300616
+Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Bruto binnenlands product,-0.013637011448309769,0.8865206901331808
+Day,,
+Hour,,
+Minute,,
+Coverage ratio,,
