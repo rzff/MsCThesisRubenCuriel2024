@@ -13,14 +13,14 @@ from qlstm_pennylane import QLSTM
 
 CONFIG = {
     'seq_len': 36,
-    'batch_size': 128,    # From text
+    'batch_size': 128,
     'n_qubits': 8,
     'dropout_rate': 0.3,
     'learning_rate': 0.001,
-    'epochs': 50,         # From text
-    'patience': 3,        # From text (3 epochs patience)
-    'min_delta': 0.0001,  # From text
-    'start_epoch': 10,    # From text (start monitoring from epoch 10)
+    'epochs': 50,
+    'patience': 3,
+    'min_delta': 0.0001,
+    'start_epoch': 10,
     'quantum_backend': "default.qubit",
     'target_shift': 60
 }
