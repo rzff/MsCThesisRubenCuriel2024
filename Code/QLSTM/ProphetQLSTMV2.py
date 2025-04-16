@@ -1,3 +1,4 @@
+
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -10,15 +11,15 @@ from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import RFE
 from qlstm_pennylane import QLSTM
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
-# ---------------- CONFIG ----------------
 CONFIG = {
     'seq_len': 12,
     'batch_size': 32,
     'n_qubits': 8,
     'dropout_rate': 0.3,
     'learning_rate': 0.001,
-    'epochs': 10,
+    'epochs': 20,
     'patience': 3,
     'min_delta': 0.0001,
     'start_epoch': 3,
@@ -26,37 +27,28 @@ CONFIG = {
     'target_shift': 60
 }
 
-# ------------- DATA LOADER AND COMBINER -------------
 def load_and_combine_duplicates():
     file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetWithProphet.csv'
     df = pd.read_csv(file_path)
-
     if 'date' not in df.columns:
         raise ValueError("No 'date' column found in dataset")
-
     df['date'] = pd.to_datetime(df['date'])
     df.set_index('date', inplace=True)
-
-    # Combine duplicates by averaging
     df = df.groupby(df.index).mean(numeric_only=True)
     df = df.sort_index().reset_index()
     return df
 
-# ------------- PREPROCESSING -------------
 def preprocess_data(df):
     numeric_cols = df.select_dtypes(include='number').columns
     for col in numeric_cols:
         q1 = df[col].quantile(0.25)
         q3 = df[col].quantile(0.75)
         df[col] = df[col].clip(q1 - 1.5 * (q3 - q1), q3 + 1.5 * (q3 - q1)).fillna(df[col].median())
-
     df['LoadConsumption'] = df['LoadConsumption'].shift(-CONFIG['target_shift'])
     if 'ProphetForecast' in df.columns:
         df['ProphetForecast'] = df['ProphetForecast'].shift(-CONFIG['target_shift'])
+    return df
 
-    return df.dropna(subset=['LoadConsumption'])
-
-# ------------- SEQUENCE CREATION -------------
 def create_sequences(df, feature_cols):
     X, y = [], []
     for i in range(len(df) - CONFIG['seq_len'] - 1):
@@ -67,7 +59,6 @@ def create_sequences(df, feature_cols):
             y.append(df['LoadConsumption'].iloc[target_idx])
     return torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
 
-# ------------- MODEL -------------
 class QuantumLSTMModel(nn.Module):
     def __init__(self, input_size, use_dropout=True):
         super().__init__()
@@ -86,30 +77,53 @@ class QuantumLSTMModel(nn.Module):
             x = x[:, -1, :]
         return self.fc(x).squeeze(-1)
 
-# ------------- TRAINING -------------
+def plot_training_validation_loss(train_losses, val_losses, save_path="training_curve.png"):
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_losses, label="Training RMSE", marker='o')
+    plt.plot(val_losses, label="Validation RMSE", marker='x')
+    plt.title("Training vs Validation RMSE Over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("RMSE")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    print(f"Loss curve saved to {save_path}")
+    plt.close()
+
 def train_model(model, model_name, train_loader, test_loader, target_scaler=None):
     optimizer = optim.Adam(model.parameters(), lr=CONFIG['learning_rate'])
     best_loss = float('inf')
     epochs_no_improve = 0
+    train_losses, val_losses = [], []
 
     for epoch in tqdm(range(CONFIG['epochs']), desc="Epochs", unit="epoch"):
         model.train()
+        train_epoch_rmse = []
+
         for X_batch, y_batch in train_loader:
             optimizer.zero_grad()
-            loss = torch.sqrt(nn.MSELoss()(model(X_batch), y_batch))
+            preds = model(X_batch)
+            loss = torch.sqrt(nn.MSELoss()(preds, y_batch))
+            train_epoch_rmse.append(loss.item())
             loss.backward()
             optimizer.step()
 
+        train_losses.append(np.mean(train_epoch_rmse))
+
         model.eval()
-        val_loss, y_preds, y_trues = 0, [], []
+        val_loss = 0.0
+        y_preds, y_trues = [], []
         with torch.no_grad():
             for X_val, y_val in test_loader:
                 outputs = model(X_val)
-                val_loss += torch.sqrt(nn.MSELoss()(outputs, y_val))
+                loss_val = torch.sqrt(nn.MSELoss()(outputs, y_val)).item()
+                val_loss += loss_val
                 y_preds.extend(outputs.cpu().numpy())
                 y_trues.extend(y_val.cpu().numpy())
 
         val_loss /= len(test_loader)
+        val_losses.append(val_loss)
 
         y_preds = np.array(y_preds)
         y_trues = np.array(y_trues)
@@ -122,7 +136,7 @@ def train_model(model, model_name, train_loader, test_loader, target_scaler=None
         rmse = np.sqrt(mean_squared_error(y_trues[mask], y_preds[mask]))
         mape = mean_absolute_percentage_error(y_trues[mask], y_preds[mask]) * 100
 
-        print(f"{model_name} Epoch {epoch+1}: Val Loss (RMSE): {val_loss:.4f} | RMSE: {rmse:.4f} | MAPE: {mape:.2f}%")
+        print(f"{model_name} Epoch {epoch+1}: Val Loss: {val_loss:.4f} | RMSE: {rmse:.2f} | MAPE: {mape:.2f}%")
 
         if epoch >= CONFIG['start_epoch']:
             if val_loss < best_loss - CONFIG['min_delta']:
@@ -132,29 +146,29 @@ def train_model(model, model_name, train_loader, test_loader, target_scaler=None
             else:
                 epochs_no_improve += 1
             if epochs_no_improve >= CONFIG['patience']:
-                print(f"{model_name} early stopping at epoch {epoch}")
+                print(f"{model_name} early stopping at epoch {epoch+1}")
                 break
 
-    print(f"{model_name} Best Validation Loss: {best_loss:.4f}")
-    return best_loss
+    return best_loss, rmse, mape, epoch + 1, train_losses, val_losses
 
-# ------------- MAIN -------------
 def main():
     print("Loading and combining data...")
     df = load_and_combine_duplicates()
+    df = preprocess_data(df).dropna(subset=['LoadConsumption'])
 
-    print("Preprocessing data...")
-    df = preprocess_data(df)
+    if len(df) < CONFIG['target_shift'] + CONFIG['seq_len'] + 2:
+        raise ValueError("Dataset too small for config.")
 
-    print("Prophet baseline MAPE:")
-    prophet_mape = mean_absolute_percentage_error(df['LoadConsumption'], df['ProphetForecast']) * 100
-    print(f"Prophet-only MAPE: {prophet_mape:.2f}%")
+    if 'ProphetForecast' in df.columns:
+        prophet_mape = mean_absolute_percentage_error(df['LoadConsumption'], df['ProphetForecast']) * 100
+        prophet_rmse = np.sqrt(mean_squared_error(df['LoadConsumption'], df['ProphetForecast']))
+        print(f"Prophet-only MAPE: {prophet_mape:.2f}% | RMSE: {prophet_rmse:.2f}")
+    else:
+        prophet_mape = prophet_rmse = None
 
-    print("Splitting into train/test...")
     train_size = int(0.8 * len(df))
     train_df, test_df = df.iloc[:train_size], df.iloc[train_size:]
 
-    print("Selecting features...")
     feature_cols = train_df.select_dtypes(include='number').columns.drop('LoadConsumption').tolist()
     selector = RFE(LinearRegression(), n_features_to_select=10)
     selector.fit(train_df[feature_cols], train_df['LoadConsumption'])
@@ -163,7 +177,6 @@ def main():
     if 'ProphetForecast' in df.columns:
         feature_cols.append('ProphetForecast')
 
-    print("Scaling features and target...")
     scaler = MinMaxScaler().fit(train_df[feature_cols])
     train_df[feature_cols] = scaler.transform(train_df[feature_cols])
     test_df[feature_cols] = scaler.transform(test_df[feature_cols])
@@ -172,19 +185,32 @@ def main():
     train_df['LoadConsumption'] = target_scaler.transform(train_df[['LoadConsumption']])
     test_df['LoadConsumption'] = target_scaler.transform(test_df[['LoadConsumption']])
 
-    print("Creating sequences...")
     X_train, y_train = create_sequences(train_df, feature_cols)
     X_test, y_test = create_sequences(test_df, feature_cols)
 
-    print("Creating data loaders...")
+    if len(X_test) == 0:
+        raise ValueError("No test sequences available.")
+
     train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=CONFIG['batch_size'], shuffle=False)
     test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=CONFIG['batch_size'])
 
-    print("Initializing Quantum LSTM model...")
+    print("Initializing Quantum LSTM...")
     model = QuantumLSTMModel(input_size=len(feature_cols), use_dropout=False)
 
-    print("Starting training...")
-    train_model(model, "QLSTM", train_loader, test_loader, target_scaler=target_scaler)
+    best_loss, best_rmse, best_mape, best_epoch, train_losses, val_losses = train_model(
+        model, "QLSTM", train_loader, test_loader, target_scaler=target_scaler
+    )
+
+    plot_training_validation_loss(train_losses, val_losses)
+
+    print("\nSummary:")
+    print(f"Best Epoch: {best_epoch}")
+    print(f"QLSTM RMSE: {best_rmse:.2f}")
+    print(f"QLSTM MAPE: {best_mape:.2f}%")
+    if prophet_rmse:
+        print(f"Prophet RMSE: {prophet_rmse:.2f}")
+        print(f"Prophet MAPE: {prophet_mape:.2f}%")
+    print(f"Features Used ({len(feature_cols)}): {feature_cols}")
 
 if __name__ == "__main__":
     main()
