@@ -8,41 +8,41 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import RFE
-from qlstm_pennylane import QLSTM  # Ensure correct import path for your QLSTM
+from qlstm_pennylane import QLSTM
 from tqdm import tqdm
 
+# ---------------- CONFIG ----------------
 CONFIG = {
     'seq_len': 12,
     'batch_size': 32,
     'n_qubits': 8,
     'dropout_rate': 0.3,
     'learning_rate': 0.001,
-    'epochs': 2,
+    'epochs': 10,
     'patience': 3,
     'min_delta': 0.0001,
-    'start_epoch': 100,
+    'start_epoch': 3,
     'quantum_backend': "default.qubit",
     'target_shift': 60
 }
 
-def load_data():
+# ------------- DATA LOADER AND COMBINER -------------
+def load_and_combine_duplicates():
     file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetWithProphet.csv'
     df = pd.read_csv(file_path)
 
-    # Recover datetime if needed
-    if 'ds' not in df.columns:
-        date_cols = [col for col in df.columns if 'date' in col.lower()]
-        if date_cols:
-            df['ds'] = pd.to_datetime(df[date_cols[0]])
-        else:
-            raise ValueError("No datetime column found.")
+    if 'date' not in df.columns:
+        raise ValueError("No 'date' column found in dataset")
 
-    # Rename 'yhat' to ProphetForecast if needed
-    if 'yhat' in df.columns and 'ProphetForecast' not in df.columns:
-        df.rename(columns={'yhat': 'ProphetForecast'}, inplace=True)
+    df['date'] = pd.to_datetime(df['date'])
+    df.set_index('date', inplace=True)
 
-    return df.sort_values('ds').reset_index(drop=True)
+    # Combine duplicates by averaging
+    df = df.groupby(df.index).mean(numeric_only=True)
+    df = df.sort_index().reset_index()
+    return df
 
+# ------------- PREPROCESSING -------------
 def preprocess_data(df):
     numeric_cols = df.select_dtypes(include='number').columns
     for col in numeric_cols:
@@ -56,6 +56,7 @@ def preprocess_data(df):
 
     return df.dropna(subset=['LoadConsumption'])
 
+# ------------- SEQUENCE CREATION -------------
 def create_sequences(df, feature_cols):
     X, y = [], []
     for i in range(len(df) - CONFIG['seq_len'] - 1):
@@ -66,28 +67,15 @@ def create_sequences(df, feature_cols):
             y.append(df['LoadConsumption'].iloc[target_idx])
     return torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
 
+# ------------- MODEL -------------
 class QuantumLSTMModel(nn.Module):
     def __init__(self, input_size, use_dropout=True):
         super().__init__()
-        self.qlstm1 = QLSTM(
-            input_size=input_size,
-            hidden_size=30,
-            n_qubits=CONFIG['n_qubits'],
-            n_qlayers=1,
-            batch_first=True,
-            return_sequences=True,
-            backend=CONFIG['quantum_backend']
-        )
+        self.qlstm1 = QLSTM(input_size=input_size, hidden_size=30, n_qubits=CONFIG['n_qubits'],
+                            n_qlayers=1, batch_first=True, return_sequences=True, backend=CONFIG['quantum_backend'])
         self.dropout = nn.Dropout(CONFIG['dropout_rate']) if use_dropout else nn.Identity()
-        self.qlstm2 = QLSTM(
-            input_size=30,
-            hidden_size=90,
-            n_qubits=CONFIG['n_qubits'],
-            n_qlayers=1,
-            batch_first=True,
-            return_sequences=False,
-            backend=CONFIG['quantum_backend']
-        )
+        self.qlstm2 = QLSTM(input_size=30, hidden_size=90, n_qubits=CONFIG['n_qubits'],
+                            n_qlayers=1, batch_first=True, return_sequences=False, backend=CONFIG['quantum_backend'])
         self.fc = nn.Linear(90, 1)
 
     def forward(self, x):
@@ -98,7 +86,8 @@ class QuantumLSTMModel(nn.Module):
             x = x[:, -1, :]
         return self.fc(x).squeeze(-1)
 
-def train_model(model, model_name, train_loader, test_loader):
+# ------------- TRAINING -------------
+def train_model(model, model_name, train_loader, test_loader, target_scaler=None):
     optimizer = optim.Adam(model.parameters(), lr=CONFIG['learning_rate'])
     best_loss = float('inf')
     epochs_no_improve = 0
@@ -112,9 +101,7 @@ def train_model(model, model_name, train_loader, test_loader):
             optimizer.step()
 
         model.eval()
-        val_loss = 0
-        y_preds, y_trues = [], []
-
+        val_loss, y_preds, y_trues = 0, [], []
         with torch.no_grad():
             for X_val, y_val in test_loader:
                 outputs = model(X_val)
@@ -123,8 +110,17 @@ def train_model(model, model_name, train_loader, test_loader):
                 y_trues.extend(y_val.cpu().numpy())
 
         val_loss /= len(test_loader)
-        rmse = np.sqrt(mean_squared_error(y_trues, y_preds))
-        mape = mean_absolute_percentage_error(y_trues, y_preds) * 100
+
+        y_preds = np.array(y_preds)
+        y_trues = np.array(y_trues)
+
+        if target_scaler:
+            y_preds = target_scaler.inverse_transform(y_preds.reshape(-1, 1)).flatten()
+            y_trues = target_scaler.inverse_transform(y_trues.reshape(-1, 1)).flatten()
+
+        mask = y_trues > 10
+        rmse = np.sqrt(mean_squared_error(y_trues[mask], y_preds[mask]))
+        mape = mean_absolute_percentage_error(y_trues[mask], y_preds[mask]) * 100
 
         print(f"{model_name} Epoch {epoch+1}: Val Loss (RMSE): {val_loss:.4f} | RMSE: {rmse:.4f} | MAPE: {mape:.2f}%")
 
@@ -142,15 +138,20 @@ def train_model(model, model_name, train_loader, test_loader):
     print(f"{model_name} Best Validation Loss: {best_loss:.4f}")
     return best_loss
 
+# ------------- MAIN -------------
 def main():
-    print("Loading data...")
-    df = load_data()
+    print("Loading and combining data...")
+    df = load_and_combine_duplicates()
 
     print("Preprocessing data...")
     df = preprocess_data(df)
 
+    print("Prophet baseline MAPE:")
+    prophet_mape = mean_absolute_percentage_error(df['LoadConsumption'], df['ProphetForecast']) * 100
+    print(f"Prophet-only MAPE: {prophet_mape:.2f}%")
+
     print("Splitting into train/test...")
-    train_size = int(0.1 * len(df))
+    train_size = int(0.8 * len(df))
     train_df, test_df = df.iloc[:train_size], df.iloc[train_size:]
 
     print("Selecting features...")
@@ -161,13 +162,15 @@ def main():
 
     if 'ProphetForecast' in df.columns:
         feature_cols.append('ProphetForecast')
-    else:
-        raise ValueError("Missing 'ProphetForecast' column in dataset.")
 
-    print("Scaling features...")
+    print("Scaling features and target...")
     scaler = MinMaxScaler().fit(train_df[feature_cols])
     train_df[feature_cols] = scaler.transform(train_df[feature_cols])
     test_df[feature_cols] = scaler.transform(test_df[feature_cols])
+
+    target_scaler = MinMaxScaler().fit(train_df[['LoadConsumption']])
+    train_df['LoadConsumption'] = target_scaler.transform(train_df[['LoadConsumption']])
+    test_df['LoadConsumption'] = target_scaler.transform(test_df[['LoadConsumption']])
 
     print("Creating sequences...")
     X_train, y_train = create_sequences(train_df, feature_cols)
@@ -177,11 +180,11 @@ def main():
     train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=CONFIG['batch_size'], shuffle=False)
     test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=CONFIG['batch_size'])
 
-    print("Initializing Quantum LSTM model (without dropout)...")
+    print("Initializing Quantum LSTM model...")
     model = QuantumLSTMModel(input_size=len(feature_cols), use_dropout=False)
 
     print("Starting training...")
-    train_model(model, "QLSTM", train_loader, test_loader)
+    train_model(model, "QLSTM", train_loader, test_loader, target_scaler=target_scaler)
 
 if __name__ == "__main__":
     main()
