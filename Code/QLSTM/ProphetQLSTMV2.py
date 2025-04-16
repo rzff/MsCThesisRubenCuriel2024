@@ -16,24 +16,6 @@ from itertools import product
 import json
 import os
 
-import pandas as pd
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
-from sklearn.linear_model import LinearRegression
-from sklearn.feature_selection import RFE
-from scipy.stats import pearsonr
-from qlstm_pennylane import QLSTM
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from itertools import product
-import json
-import os
-
 CONFIG = {
     'seq_len': 12,
     'batch_size': 32,

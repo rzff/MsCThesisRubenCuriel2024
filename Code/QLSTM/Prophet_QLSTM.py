@@ -112,7 +112,7 @@ class StackedQLSTMRegressor(nn.Module):
         return y_hat.squeeze(-1)
 
 # Prophet prediction
-prophet_df = df_Complete[['ds', 'LoadConsumption']].rename(columns={'LoadConsumption': 'y'})
+prophet_df = df_Complete[['ds', 'LoadConsumption']].rename(columns={'LoadConsumption': 'y'})2
 prophet_train = prophet_df.iloc[:int(0.8 * len(prophet_df))]
 prophet_test = prophet_df.iloc[int(0.8 * len(prophet_df)):]  # Must include future 'ds'
 
