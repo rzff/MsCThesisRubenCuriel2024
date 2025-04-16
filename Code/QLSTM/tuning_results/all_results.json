@@ -1,0 +1,338 @@
+[
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 3
+        },
+        "loss": 0.17036639153957367,
+        "rmse": 898.7872314453125,
+        "mape": 6.182916089892387,
+        "pcc": -0.7488234119112857
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 3
+        },
+        "loss": 0.16971343755722046,
+        "rmse": 895.3424682617188,
+        "mape": 6.153712049126625,
+        "pcc": -0.27806088796111905
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 4
+        },
+        "loss": 0.16965262591838837,
+        "rmse": 895.0219116210938,
+        "mape": 6.14333301782608,
+        "pcc": -0.7246458261981206
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 4
+        },
+        "loss": 0.1697564721107483,
+        "rmse": 895.5694580078125,
+        "mape": 6.1567772179841995,
+        "pcc": 0.14560689908610738
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 5
+        },
+        "loss": 0.16981825232505798,
+        "rmse": 895.8958740234375,
+        "mape": 6.161017715930939,
+        "pcc": -0.9855665420006023
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 5
+        },
+        "loss": 0.17144758999347687,
+        "rmse": 904.4910888671875,
+        "mape": 6.074453890323639,
+        "pcc": -0.4937111081538537
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 6
+        },
+        "loss": 0.1703132688999176,
+        "rmse": 898.5066528320312,
+        "mape": 6.1792075634002686,
+        "pcc": -0.7367977901886831
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 6
+        },
+        "loss": 0.16988828778266907,
+        "rmse": 896.2648315429688,
+        "mape": 6.166313588619232,
+        "pcc": 0.8095696097528287
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 7
+        },
+        "loss": 0.17023582756519318,
+        "rmse": 898.0986938476562,
+        "mape": 6.0965172946453094,
+        "pcc": 0.8518796409067562
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 7
+        },
+        "loss": 0.17110447585582733,
+        "rmse": 902.6810302734375,
+        "mape": 6.122485548257828,
+        "pcc": -0.6980669451274291
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 8
+        },
+        "loss": 0.17016325891017914,
+        "rmse": 897.715576171875,
+        "mape": 6.176041439175606,
+        "pcc": -0.7806200491286424
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 8
+        },
+        "loss": 0.1697673499584198,
+        "rmse": 895.6270751953125,
+        "mape": 6.127478554844856,
+        "pcc": -0.7517477455497696
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 9
+        },
+        "loss": 0.1697099506855011,
+        "rmse": 895.3244018554688,
+        "mape": 6.130338087677956,
+        "pcc": -0.8149882445553658
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 9
+        },
+        "loss": 0.17040297389030457,
+        "rmse": 898.9801025390625,
+        "mape": 6.18283636868,
+        "pcc": -0.32387181049306757
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": true,
+            "n_features_to_select": 10
+        },
+        "loss": 0.1716831922531128,
+        "rmse": 905.7344360351562,
+        "mape": 6.207789480686188,
+        "pcc": -0.7438850658877233
+    },
+    {
+        "config": {
+            "seq_len": 12,
+            "batch_size": 32,
+            "n_qubits": 8,
+            "dropout_rate": 0.3,
+            "learning_rate": 0.001,
+            "epochs": 20,
+            "patience": 3,
+            "min_delta": 0.0001,
+            "start_epoch": 3,
+            "quantum_backend": "default.qubit",
+            "target_shift": 60,
+            "use_dropout": false,
+            "n_features_to_select": 10
+        },
+        "loss": 0.17005474865436554,
+        "rmse": 897.142822265625,
+        "mape": 6.112274527549744,
+        "pcc": -0.7841456227091036
+    }
+]
