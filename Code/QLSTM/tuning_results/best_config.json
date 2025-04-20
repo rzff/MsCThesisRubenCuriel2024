@@ -1,9 +1,9 @@
 {
     "config": {
         "seq_len": 12,
-        "batch_size": 32,
+        "batch_size": 128,
         "n_qubits": 8,
-        "dropout_rate": 0.3,
+        "dropout_rate": 0.1,
         "learning_rate": 0.001,
         "epochs": 20,
         "patience": 3,
@@ -12,10 +12,10 @@
         "quantum_backend": "default.qubit",
         "target_shift": 60,
         "use_dropout": true,
-        "n_features_to_select": 4
+        "n_features_to_select": 5
     },
-    "loss": 0.16965262591838837,
-    "rmse": 895.0219116210938,
-    "mape": 6.14333301782608,
-    "pcc": -0.7246458261981206
+    "loss": 0.16953639686107635,
+    "rmse": 894.4083862304688,
+    "mape": 6.144873797893524,
+    "pcc": 0.8722042034024916
 }
