@@ -5,8 +5,12 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import csv
+import glob
+import re
 from prophet import Prophet
 from tqdm import tqdm
+from tqdm import trange
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
@@ -15,39 +19,76 @@ from scipy.stats import pearsonr
 from qlstm_pennylane import QLSTM
 
 CONFIG = {
-    'seq_len': 168,
+    'seq_len': 48,
     'batch_size': 64,
     'n_qubits': 4,
-    'n_qlayers': 2,
+    'n_qlayers': 1,
     'dropout_rate': 0.3,
-    'learning_rate': 0.005,
-    'epochs': 50,
-    'patience': 5,
+    'learning_rate': 0.001,
+    'epochs': 25,
+    'patience': 7,
     'min_delta': 0.00001,
     'start_epoch': 3,
-    'quantum_backend': "default.qubit",
-    'target_shift': 1440,
+    'quantum_backend': "lightning.qubit",
+    'target_shift': 770,
     'use_dropout': True,
-    'n_features_to_select': 5,
+    'n_features_to_select': 15,
+    'n_climate_features': 4,
+    'n_econ_features': 11,
     'hidden_size1': 60,
     'hidden_size2': 120,
     'use_multiplicative_seasonality': True,
-    'use_hybrid_activation': True,
-    'use_advanced_prophet': True,
-    'warmup_epochs': 5
+    'use_advanced_prophet': False,
+    'warmup_epochs': 3,
+    'start_fold': 1,
+    'config_version': 'v2.1_pcc-aware-es',
+    'run_classical_lstm': True,
+    'run_quantum_lstm': True
 }
 
-def load_and_combine_duplicates():
-    file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetWithoutProphet.csv'
-    df = pd.read_csv(file_path)
-    df['date'] = pd.to_datetime(df['date'])
-    df.set_index('date', inplace=True)
-    df = df.groupby(df.index).mean(numeric_only=True)
-    df = df.sort_index().reset_index()
-    return df
+CLIMATE_FEATURES = [
+    'DailyPrecipitation', 'MaxHourlyPrecipitation', 'HDMaxPrecipitation',
+    'DailyMeanTemperature', 'HourlyMinTemperature', 'HDMinTemperature',
+    'HourlyMaxTemperature', 'HDMaxTemperature',
+    'DailyMeanWindspeed', 'MaxHourlyMeanWindspeed', 'HDMaxMeanWindspeed',
+    'MinHourlyMeanWindspeed', 'HDMinMeanWindspeed',
+    'sic', 'NAO'
+]
+
+class QuantumLSTMModel(nn.Module):
+    def __init__(self, input_size, config):
+        super().__init__()
+        self.qlstm = QLSTM(input_size=input_size, hidden_size=config['hidden_size1'],
+                           n_qubits=config['n_qubits'], n_qlayers=1, batch_first=True,
+                           return_sequences=False, backend=config['quantum_backend'])
+        self.dropout = nn.Dropout(config['dropout_rate']) if config['use_dropout'] else nn.Identity()
+        self.fc1 = nn.Linear(config['hidden_size1'], 64)
+        self.fc2 = nn.Linear(64, 1)
+
+
+    def forward(self, x):
+        x, _ = self.qlstm(x)         # Single QLSTM layer
+        x = self.dropout(x)
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x).squeeze(-1)
+
+
+class ClassicalLSTMModel(nn.Module):
+    def __init__(self, input_size, config):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size, config['hidden_size1'], batch_first=True)
+        self.dropout = nn.Dropout(config['dropout_rate']) if config['use_dropout'] else nn.Identity()
+        self.fc1 = nn.Linear(config['hidden_size1'], 64)
+        self.fc2 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        x, _ = self.lstm(x)
+        x = self.dropout(x[:, -1, :])
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x).squeeze(-1)
 
 def load_and_combine_duplicates():
-    file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetWithoutProphet.csv'
+    file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetHourly.csv'
     df = pd.read_csv(file_path)
     df['date'] = pd.to_datetime(df['date'])
     df.set_index('date', inplace=True)
@@ -67,11 +108,25 @@ def preprocess_data(df, config):
     df['LoadConsumption'] = df['LoadConsumption'].shift(-config['target_shift'])
     return df
 
+def get_latest_checkpoint(model_name):
+    checkpoint_files = glob.glob(f"{model_name}_epoch_*.pth")
+    if not checkpoint_files:
+        return None, 0
+    latest_file = max(checkpoint_files, key=lambda x: int(re.findall(r"epoch_(\d+)", x)[0]))
+    last_epoch = int(re.findall(r"epoch_(\d+)", latest_file)[0])
+    return latest_file, last_epoch
+
 def generate_prophet_forecast(train_df, forecast_dates, config):
     prophet_train = train_df[['date', 'LoadConsumption']].rename(columns={'date': 'ds', 'LoadConsumption': 'y'})
+    nan_before = prophet_train.shape[0]
+    prophet_train = prophet_train.dropna()
+    nan_after = prophet_train.shape[0]
+    print(f"Prophet training loss due to NaNs: {nan_before - nan_after} rows ({(nan_before - nan_after) / nan_before * 100:.2f}%)")
+
     forecast_start = forecast_dates.min()
     forecast_end = forecast_dates.max()
-    future = pd.DataFrame({'ds': pd.date_range(start=forecast_start, end=forecast_end, freq='H')})
+    extended_end = forecast_end + pd.to_timedelta(config['target_shift'], unit='h')
+    future = pd.DataFrame({'ds': pd.date_range(start=forecast_start, end=extended_end, freq='h')})
 
     model = Prophet(
         daily_seasonality=False,
@@ -86,23 +141,30 @@ def generate_prophet_forecast(train_df, forecast_dates, config):
     forecast = forecast[['ds', 'yhat', 'trend', 'weekly', 'yearly']]
     forecast = forecast.rename(columns={'ds': 'date'}).set_index('date')
     forecast = forecast.loc[forecast_dates]
-    forecast = forecast.shift(-config['target_shift'])
     return forecast
+
 
 def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     prophet_train = train_df.copy()
     prophet_train = prophet_train.rename(columns={'date': 'ds', 'LoadConsumption': 'y'})
 
+    # Select top correlated features
     corr = prophet_train.corr(numeric_only=True)['y'].abs().sort_values(ascending=False)
     top_features = [col for col in corr.index if col != 'y'][:config['n_features_to_select']]
 
-    scaler = MinMaxScaler()
-    prophet_train[top_features] = scaler.fit_transform(prophet_train[top_features])
-
+    # Add lag-based features
     prophet_train['lag_1'] = prophet_train['y'].shift(1).bfill()
     prophet_train['rolling_24'] = prophet_train['y'].rolling(window=24, min_periods=1).mean()
     top_features += ['lag_1', 'rolling_24']
 
+    # Reorder and drop NaNs
+    prophet_train = prophet_train[['ds', 'y'] + top_features]
+    nan_before = prophet_train.shape[0]
+    prophet_train = prophet_train.dropna()
+    nan_after = prophet_train.shape[0]
+    print(f"Prophet + regressors training loss due to NaNs: {nan_before - nan_after} rows ({(nan_before - nan_after) / nan_before * 100:.2f}%)")
+
+    # Create Prophet model
     model = Prophet(
         daily_seasonality=False,
         weekly_seasonality=10,
@@ -115,11 +177,12 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     for feature in top_features:
         model.add_regressor(feature)
 
+    # Build future dataframe with regressors
     forecast_start = forecast_dates.min()
     forecast_end = forecast_dates.max()
-    hourly_forecast_dates = pd.date_range(start=forecast_start, end=forecast_end, freq='H')
+    extended_end = forecast_end + pd.to_timedelta(config['target_shift'], unit='h')
+    future = pd.DataFrame({'ds': pd.date_range(start=forecast_start, end=extended_end, freq='h')})
 
-    future = pd.DataFrame({'ds': hourly_forecast_dates})
     recent_hourly = train_df.copy()
     recent_hourly = recent_hourly.rename(columns={'date': 'ds'})
 
@@ -131,15 +194,18 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
         else:
             future[feature] = 0
 
-    prophet_train = prophet_train[['ds', 'y'] + top_features].dropna()
     model.fit(prophet_train)
 
     forecast = model.predict(future)
+    if (forecast['yhat'] < 0).any():
+        print("Warning: Prophet predicted negative values — check regressor scale and data consistency.")
+
     forecast = forecast[['ds', 'yhat', 'trend', 'weekly', 'yearly']]
     forecast = forecast.rename(columns={'ds': 'date'}).set_index('date')
     forecast = forecast.loc[forecast_dates]
-    forecast = forecast.shift(-config['target_shift'])
     return forecast
+
+
 
 def get_prophet_forecast(train_df, forecast_dates, config):
     if config.get("use_advanced_prophet", False):
@@ -147,9 +213,19 @@ def get_prophet_forecast(train_df, forecast_dates, config):
     else:
         return generate_prophet_forecast(train_df, forecast_dates, config)
 
-def select_features_by_corr(train_df, target_col, k=7):
-    corr = train_df.corr(numeric_only=True)[target_col].abs().sort_values(ascending=False)
-    return [col for col in corr.index if col != target_col][:k]
+def select_mixed_features_by_corr(train_df, target_col, n_climate, n_econ):
+    all_corr = train_df.corr(numeric_only=True)[target_col].abs().sort_values(ascending=False)
+
+    climate = [f for f in CLIMATE_FEATURES if f in all_corr.index]
+    econ = [f for f in all_corr.index if f not in climate and f != target_col]
+
+    top_climate = [f for f in climate if not train_df[f].isna().all()]
+    top_econ = [f for f in econ if not train_df[f].isna().all()]
+
+    selected_climate = top_climate[:n_climate]
+    selected_econ = top_econ[:n_econ]
+    return selected_climate + selected_econ
+
 
 def create_sequences(df, feature_cols, config):
     X, y = [], []
@@ -161,93 +237,92 @@ def create_sequences(df, feature_cols, config):
             y.append(df['LoadConsumption'].iloc[target_idx])
     return torch.from_numpy(np.array(X)).float(), torch.from_numpy(np.array(y)).float()
 
-class QuantumLSTMModel(nn.Module):
-    def __init__(self, input_size, config):
-        super().__init__()
-        self.qlstm1 = QLSTM(input_size=input_size, hidden_size=config['hidden_size1'], n_qubits=config['n_qubits'],
-                            n_qlayers=1, batch_first=True, return_sequences=True, backend=config['quantum_backend'])
-        self.dropout = nn.Dropout(config['dropout_rate']) if config['use_dropout'] else nn.Identity()
-        self.qlstm2 = QLSTM(input_size=config['hidden_size1'], hidden_size=config['hidden_size2'],
-                            n_qubits=config['n_qubits'], n_qlayers=1, batch_first=True,
-                            return_sequences=False, backend=config['quantum_backend'])
-        self.fc1 = nn.Linear(config['hidden_size2'], 64)
-        self.fc2 = nn.Linear(64, 1)
 
-    def forward(self, x):
-        x, _ = self.qlstm1(x)
-        x = self.dropout(x)
-        x, _ = self.qlstm2(x)
-        if x.dim() == 3:
-            x = x[:, -1, :]
-        x = torch.relu(self.fc1(x))
-        return self.fc2(x).squeeze(-1)
 
-def train_model(model, model_name, train_loader, test_loader, config, target_scaler=None):
-    optimizer = optim.Adam(model.parameters(), lr=config['learning_rate'])
 
-    def warmup_lr(epoch):
-        if epoch < config.get('warmup_epochs', 5):
-            return (epoch + 1) / config['warmup_epochs']
-        return 1.0
+def train_model(train_loader, val_loader, input_size, hidden_size, device,
+                prophet_preds_val, used_features, target_scaler=None,
+                epochs=25, patience=5, model_class=None):
 
-    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=warmup_lr)
-    plateau_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', patience=2, factor=0.5, verbose=True
-    )
 
-    best_loss = float('inf')
-    best_rmse, best_mape, best_pcc = None, None, None
+    print(f"\n Used Features in This Fold ({len(used_features)} total):")
+    for feat in used_features:
+        print(f" - {feat}")
+    print()
 
-    log_path = f"{model_name}_training_log.csv"
-    with open(log_path, "w") as f:
-        f.write("epoch,learning_rate,rmse,mape,pcc\n")
+    model = model_class(input_size=input_size, config=CONFIG).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=CONFIG['learning_rate'])
+    loss_fn = nn.MSELoss()
 
-    for epoch in tqdm(range(config['epochs']), desc="Epochs", unit="epoch"):
+    # Learning rate scheduler with warm-up
+    warmup_epochs = CONFIG.get("warmup_epochs", 3)
+    lr_lambda = lambda epoch: min(1.0, (epoch + 1) / warmup_epochs)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
+    best_val_rmse = float('inf')
+    best_model_state = None
+    epochs_no_improve = 0
+
+    progress = trange(epochs, desc="Training", leave=True)
+
+    for epoch in progress:
         model.train()
-        for X_batch, y_batch in train_loader:
+        batch_loop = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch+1} Batches", leave=False)
+
+        for i, (batch_X, batch_y) in batch_loop:
+            batch_X, batch_y = batch_X.to(device), batch_y.to(device)
             optimizer.zero_grad()
-            loss = torch.sqrt(nn.MSELoss()(model(X_batch), y_batch))
+            output = model(batch_X)
+            loss = loss_fn(output, batch_y)
             loss.backward()
             optimizer.step()
 
-        if epoch < config.get('warmup_epochs', 5):
-            warmup_scheduler.step()
+            # Optional: update batch bar with current loss
+            batch_loop.set_postfix(loss=loss.item())
 
         model.eval()
-        val_loss, y_preds, y_trues = 0, [], []
+        val_preds, val_targets = [], []
         with torch.no_grad():
-            for X_val, y_val in test_loader:
-                outputs = model(X_val)
-                val_loss += torch.sqrt(nn.MSELoss()(outputs, y_val)).item()
-                y_preds.extend(outputs.cpu().numpy())
-                y_trues.extend(y_val.cpu().numpy())
+            for batch_X, batch_y in val_loader:
+                batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+                output = model(batch_X)
+                val_preds.append(output.cpu().numpy())
+                val_targets.append(batch_y.cpu().numpy())
 
-        y_preds = np.array(y_preds)
-        y_trues = np.array(y_trues)
+        val_preds = np.concatenate(val_preds)
+        val_targets = np.concatenate(val_targets)
+        model_preds =  val_preds
 
-        if target_scaler:
-            y_preds = target_scaler.inverse_transform(y_preds.reshape(-1, 1)).flatten()
-            y_trues = target_scaler.inverse_transform(y_trues.reshape(-1, 1)).flatten()
+        if target_scaler is not None:
+            model_preds = target_scaler.inverse_transform(model_preds.reshape(-1, 1)).flatten()
+            val_targets = target_scaler.inverse_transform(val_targets.reshape(-1, 1)).flatten()
 
-        rmse = np.sqrt(mean_squared_error(y_trues, y_preds))
-        mape = mean_absolute_percentage_error(y_trues, y_preds) * 100
-        pcc, _ = pearsonr(y_trues, y_preds)
+        rmse = mean_squared_error(val_targets, model_preds, squared=False)
+        mape = mean_absolute_percentage_error(val_targets, model_preds) * 100
+        pcc = np.corrcoef(val_targets, model_preds)[0, 1]
 
-        if epoch >= config.get('warmup_epochs', 5):
-            plateau_scheduler.step(val_loss)
+        current_lr = scheduler.get_last_lr()[0]
+        progress.set_description(
+            f"Epoch {epoch+1} | RMSE: {rmse:.2f} | MAPE: {mape:.2f}% | PCC: {pcc:.3f} | LR: {current_lr:.6f}"
+        )
 
-        if val_loss < best_loss - config['min_delta']:
-            best_loss = val_loss
-            best_rmse, best_mape, best_pcc = rmse, mape, pcc
+        # Step the scheduler
+        scheduler.step()
 
-        current_lr = optimizer.param_groups[0]['lr']
-        print(f"Epoch {epoch+1} | LR: {current_lr:.6f} | RMSE: {rmse:.2f} | MAPE: {mape:.2f}% | PCC: {pcc:.3f}")
+        if rmse < best_val_rmse:
+            best_val_rmse = rmse
+            best_model_state = model.state_dict()
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve >= patience:
+                print(f"\n Early stopping at epoch {epoch+1}")
+                break
+
+    model.load_state_dict(best_model_state)
+    return model, best_val_rmse, mape, pcc
 
 
-        with open(log_path, "a") as f:
-            f.write(f"{epoch+1},{current_lr:.6f},{rmse:.4f},{mape:.4f},{pcc:.4f}\n")
-
-    return best_loss, best_rmse, best_mape, best_pcc
 def run_single_fold(train_df, test_df, config, fold_id):
     train_df = preprocess_data(train_df.copy(), config)
     test_df = preprocess_data(test_df.copy(), config)
@@ -258,15 +333,23 @@ def run_single_fold(train_df, test_df, config, fold_id):
         print(f"Skipping fold {fold_id}: no valid training or testing data.")
         return None
 
-    forecast_dates = test_df['date'].reset_index(drop=True)
-    prophet_forecast = get_prophet_forecast(train_df, forecast_dates, config)
+    # STEP 1: Forecast Prophet for both train and test sets separately
+    train_forecast = get_prophet_forecast(train_df, train_df['date'], config)
+    test_forecast = get_prophet_forecast(train_df, test_df['date'], config)  # Prophet trained only on train_df
+
     forecast_cols = ['yhat', 'trend', 'weekly', 'yearly']
 
-    test_df = test_df.set_index('date')
-    test_df = test_df.merge(prophet_forecast, how='left', left_index=True, right_index=True)
-    test_df[forecast_cols] = test_df[forecast_cols].fillna(0)
-    test_df = test_df.reset_index()
+    # STEP 2: Merge forecasts into train and test sets
+    train_df = train_df.set_index('date').merge(train_forecast, how='left', left_index=True, right_index=True).reset_index()
+    test_df = test_df.set_index('date').merge(test_forecast, how='left', left_index=True, right_index=True).reset_index()
 
+    # STEP 3: Handle potential missing values
+    for col in forecast_cols:
+        train_df[col] = train_df[col].ffill().bfill()
+        test_df[col] = test_df[col].ffill().bfill()
+
+
+    # Baseline MAPE
     try:
         y_true_baseline = test_df['LoadConsumption'].values
         prophet_yhat = test_df['yhat'].values
@@ -278,11 +361,17 @@ def run_single_fold(train_df, test_df, config, fold_id):
 
     prophet_yhat_unscaled = test_df['yhat'].copy().values
 
-    for col in forecast_cols:
-        train_df[col] = test_df[col].mean()
 
-    selected_features = select_features_by_corr(train_df, 'LoadConsumption', config['n_features_to_select'])
-    final_features = selected_features + forecast_cols
+    forecast_cols = ['yhat', 'trend', 'weekly', 'yearly']
+    selected_features = select_mixed_features_by_corr(
+        train_df,
+        target_col='LoadConsumption',
+        n_climate=config.get('n_climate_features', 3),
+        n_econ=config.get('n_econ_features', 2)
+    )
+
+    final_features = list(dict.fromkeys(selected_features + forecast_cols))
+
 
     scaler = MinMaxScaler().fit(train_df[final_features])
     train_df[final_features] = scaler.transform(train_df[final_features])
@@ -301,24 +390,80 @@ def run_single_fold(train_df, test_df, config, fold_id):
 
     train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=config['batch_size'], shuffle=False)
     test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=config['batch_size'])
+    prophet_preds_val = prophet_yhat_unscaled[config['seq_len'] : config['seq_len'] + len(test_loader.dataset)]
 
-    model = QuantumLSTMModel(input_size=len(final_features), config=config)
-    model_name = f"fold_{fold_id}_QLSTM"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    results = {
+        "fold": fold_id,
+        "train_start": str(train_df['date'].min().date()),
+        "train_end": str(train_df['date'].max().date()),
+        "test_start": str(test_df['date'].min().date()),
+        "test_end": str(test_df['date'].max().date()),
+        "prophet_baseline_mape": baseline_mape,
+        "selected_features": selected_features,
+        "forecast_features": forecast_cols,
+        "prophet_config": {
+            "advanced": config.get("use_advanced_prophet", False),
+            "multiplicative": config.get("use_multiplicative_seasonality", False),
+            "n_features_used": config.get("n_features_to_select", 5)
+        }
+    }
 
-    best_loss, best_rmse, best_mape, best_pcc = train_model(
-        model, model_name, train_loader, test_loader, config, target_scaler=target_scaler
-    )
+    if config.get("run_classical_lstm", True):
+        print(f"\n>>> Training Classical LSTM for Fold {fold_id}")
+        cls_model, cls_rmse, cls_mape, cls_pcc = train_model(
+            train_loader, test_loader, len(final_features), config['hidden_size1'],
+            device, prophet_preds_val, final_features, target_scaler,
+            epochs=config['epochs'], patience=config['patience'],
+            model_class=ClassicalLSTMModel
+        )
+        results.update({
+            "cls_rmse": cls_rmse,
+            "cls_mape": cls_mape,
+            "cls_pcc": cls_pcc
+        })
+        print(f" Classical LSTM Results | RMSE: {cls_rmse:.2f} | MAPE: {cls_mape:.2f}% | PCC: {cls_pcc:.3f}")
 
-    print(f"Fold {fold_id} | RMSE: {best_rmse:.2f} | MAPE: {best_mape:.2f}% | PCC: {best_pcc:.3f}")
+
+    if config.get("run_quantum_lstm", True):
+        print(f"\n>>> Training QLSTM for Fold {fold_id}")
+        qlstm_model, qlstm_rmse, qlstm_mape, qlstm_pcc = train_model(
+            train_loader, test_loader, len(final_features), config['hidden_size1'],
+            device, prophet_preds_val, final_features, target_scaler,
+            epochs=config['epochs'], patience=config['patience'],
+            model_class=QuantumLSTMModel
+        )
+        results.update({
+            "qlstm_rmse": qlstm_rmse,
+            "qlstm_mape": qlstm_mape,
+            "qlstm_pcc": qlstm_pcc
+        })
+        print(f" Quantum LSTM Results   | RMSE: {qlstm_rmse:.2f} | MAPE: {qlstm_mape:.2f}% | PCC: {qlstm_pcc:.3f}")
+
+
+    # Prepare the sliced Prophet predictions (for stacking + hybrid loss)
+
+    used_features = final_features
+
+
+
+    if config.get("run_classical_lstm", False):
+        print(f"Fold {fold_id} | Classical LSTM | RMSE: {cls_rmse:.2f} | MAPE: {cls_mape:.2f}% | PCC: {cls_pcc:.3f}")
+
+    if config.get("run_quantum_lstm", False):
+        print(f"Fold {fold_id} | Quantum LSTM   | RMSE: {qlstm_rmse:.2f} | MAPE: {qlstm_mape:.2f}% | PCC: {qlstm_pcc:.3f}")
+
 
     # Stacking
     qlstm_preds, true_targets = [], []
-    model.eval()
-    with torch.no_grad():
-        for X_val, y_val in test_loader:
-            outputs = model(X_val)
-            qlstm_preds.extend(outputs.cpu().numpy())
-            true_targets.extend(y_val.cpu().numpy())
+    if config.get("run_quantum_lstm", True):
+        qlstm_model.eval()
+        with torch.no_grad():
+            for X_val, y_val in test_loader:
+                X_val = X_val.to(device)
+                outputs = qlstm_model(X_val).cpu()
+                qlstm_preds.extend(outputs.numpy())
+                true_targets.extend(y_val.numpy())
 
     qlstm_preds = np.array(qlstm_preds).reshape(-1, 1)
     prophet_preds = prophet_yhat_unscaled[config['seq_len']:config['seq_len'] + len(qlstm_preds)].reshape(-1, 1)
@@ -351,7 +496,14 @@ def run_single_fold(train_df, test_df, config, fold_id):
         "prophet_baseline_mape": baseline_mape,
         "stacked_rmse": stack_rmse,
         "stacked_mape": stack_mape,
-        "stacked_pcc": stack_pcc
+        "stacked_pcc": stack_pcc,
+        "selected_features": selected_features,
+        "forecast_features": forecast_cols,
+        "prophet_config": {
+            "advanced": config.get("use_advanced_prophet", False),
+            "multiplicative": config.get("use_multiplicative_seasonality", False),
+            "n_features_used": config.get("n_features_to_select", 5)
+        }
     }
 
 def save_fold_to_csv(fold_result, csv_path='rocv_results.csv'):
@@ -362,36 +514,45 @@ def save_fold_to_csv(fold_result, csv_path='rocv_results.csv'):
             writer.writeheader()
         writer.writerow(fold_result)
 
-def run_rolling_origin_cv(df, config, start_year, end_year, results_path="rocv_results.json"):
+def run_rolling_origin_cv(df, config, start_year=2010, final_test_year=2019, results_path="rocv_results.json"):
     all_results = []
-    for year in range(start_year, end_year):
-        train_start = pd.Timestamp(f"{year}-01-01")
-        train_end = pd.Timestamp(f"{year + 1}-12-31")
-        test_start = pd.Timestamp(f"{year + 2}-01-01")
-        test_end = pd.Timestamp(f"{year + 2}-12-31")
+    for test_year in range(start_year + 2, final_test_year + 1):
+        fold_id = test_year - (start_year + 1)
+        if fold_id < config.get("start_fold", 1):
+            print(f"Skipping fold {fold_id} due to config['start_fold'] = {config['start_fold']}")
+            continue
 
-        print(f"Fold {year - start_year + 1} | Training: {train_start.date()} to {train_end.date()} | Testing: {test_start.date()} to {test_end.date()}")
+        train_start = pd.Timestamp(f"{start_year}-01-01")
+        train_end = pd.Timestamp(f"{test_year - 1}-12-31")
+        test_start = pd.Timestamp(f"{test_year}-01-01")
+        test_end = pd.Timestamp(f"{test_year}-12-31")
+
+        print(f"Fold {fold_id} | Training: {train_start.date()} to {train_end.date()} | Testing: {test_start.date()} to {test_end.date()}")
 
         train_df = df[(df['date'] >= train_start) & (df['date'] <= train_end)].copy()
         test_df = df[(df['date'] >= test_start) & (df['date'] <= test_end)].copy()
 
         if len(train_df) == 0 or len(test_df) == 0:
-            print(f"Skipping fold for year {year}: insufficient data")
+            print(f"Skipping fold for test year {test_year}: insufficient data")
             continue
 
-        fold_result = run_single_fold(train_df, test_df, config, fold_id=year - start_year + 1)
+        fold_result = run_single_fold(train_df, test_df, config, fold_id=fold_id)
         if fold_result:
             all_results.append(fold_result)
-            save_fold_to_csv(fold_result)  # << CSV logging here
+            save_fold_to_csv(fold_result)
 
     with open(results_path, "w") as f:
         json.dump(all_results, f, indent=4)
+
     print(f"ROCV completed. Results saved to: {results_path}")
 
 if __name__ == "__main__":
     try:
         df = load_and_combine_duplicates()
-        run_rolling_origin_cv(df, CONFIG, start_year=2009, end_year=2018)
+        df_shifted = preprocess_data(df.copy(), CONFIG)  # For QLSTM only
+
+        run_rolling_origin_cv(df_shifted, CONFIG, start_year=2010, final_test_year=2019)
+
     except Exception as e:
         import traceback
         traceback.print_exc()
