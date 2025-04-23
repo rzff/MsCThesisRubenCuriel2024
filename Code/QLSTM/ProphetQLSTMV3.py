@@ -58,20 +58,24 @@ CLIMATE_FEATURES = [
 class QuantumLSTMModel(nn.Module):
     def __init__(self, input_size, config):
         super().__init__()
-        self.qlstm = QLSTM(input_size=input_size, hidden_size=config['hidden_size1'],
-                           n_qubits=config['n_qubits'], n_qlayers=1, batch_first=True,
-                           return_sequences=False, backend=config['quantum_backend'])
+        self.qlstm1 = QLSTM(input_size=input_size, hidden_size=config['hidden_size1'], n_qubits=config['n_qubits'],
+                            n_qlayers=1, batch_first=True, return_sequences=True, backend=config['quantum_backend'])
         self.dropout = nn.Dropout(config['dropout_rate']) if config['use_dropout'] else nn.Identity()
-        self.fc1 = nn.Linear(config['hidden_size1'], 64)
+        self.qlstm2 = QLSTM(input_size=config['hidden_size1'], hidden_size=config['hidden_size2'],
+                            n_qubits=config['n_qubits'], n_qlayers=1, batch_first=True,
+                            return_sequences=False, backend=config['quantum_backend'])
+        self.fc1 = nn.Linear(config['hidden_size2'], 64)
         self.fc2 = nn.Linear(64, 1)
 
 
     def forward(self, x):
-        x, _ = self.qlstm(x)         # Single QLSTM layer
+        x, _ = self.qlstm1(x)
         x = self.dropout(x)
+        x, _ = self.qlstm2(x)
+        if x.dim() == 3:
+            x = x[:, -1, :]
         x = torch.relu(self.fc1(x))
         return self.fc2(x).squeeze(-1)
-
 
 class ClassicalLSTMModel(nn.Module):
     def __init__(self, input_size, config):
