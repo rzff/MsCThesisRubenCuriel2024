@@ -1,0 +1,9 @@
+torch
+pennylane
+pennylane-lightning
+prophet
+scikit-learn==1.3.2
+pandas
+numpy
+tqdm
+matplotlib

@@ -18,33 +18,63 @@ from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
 from qlstm_pennylane import QLSTM
 
+# Temporary config to test
 CONFIG = {
     'seq_len': 48,
-    'batch_size': 64,
+    'batch_size': 32,
     'n_qubits': 4,
     'n_qlayers': 1,
     'dropout_rate': 0.3,
     'learning_rate': 0.001,
-    'epochs': 25,
-    'patience': 7,
-    'min_delta': 0.00001,
-    'start_epoch': 3,
+    'epochs': 5,
+    'patience': 3,
+    'min_delta': 0.0001,
+    'start_epoch': 0,
     'quantum_backend': "lightning.qubit",
-    'target_shift': 770,
+    'target_shift': 168,  # 1 week in hours
     'use_dropout': True,
-    'n_features_to_select': 15,
-    'n_climate_features': 4,
-    'n_econ_features': 11,
-    'hidden_size1': 60,
-    'hidden_size2': 120,
+    'n_features_to_select': 10,
+    'n_climate_features': 3,
+    'n_econ_features': 5,
+    'hidden_size1': 32,
+    'hidden_size2': 64,
     'use_multiplicative_seasonality': True,
-    'use_advanced_prophet': False,
-    'warmup_epochs': 3,
+    'use_advanced_prophet': True,
+    'warmup_epochs': 2,
     'start_fold': 1,
-    'config_version': 'v2.1_pcc-aware-es',
+    'config_version': 'test_run_v1',
     'run_classical_lstm': True,
     'run_quantum_lstm': True
 }
+
+# Original Config
+# CONFIG = {
+#     'seq_len': 48,
+#     'batch_size': 64,
+#     'n_qubits': 4,
+#     'n_qlayers': 1,
+#     'dropout_rate': 0.3,
+#     'learning_rate': 0.001,
+#     'epochs': 25,
+#     'patience': 7,
+#     'min_delta': 0.00001,
+#     'start_epoch': 3,
+#     'quantum_backend': "lightning.qubit",
+#     'target_shift': 770,
+#     'use_dropout': True,
+#     'n_features_to_select': 15,
+#     'n_climate_features': 4,
+#     'n_econ_features': 11,
+#     'hidden_size1': 60,
+#     'hidden_size2': 120,
+#     'use_multiplicative_seasonality': True,
+#     'use_advanced_prophet': False,
+#     'warmup_epochs': 3,
+#     'start_fold': 1,
+#     'config_version': 'v2.1_pcc-aware-es',
+#     'run_classical_lstm': True,
+#     'run_quantum_lstm': True
+# }
 
 CLIMATE_FEATURES = [
     'DailyPrecipitation', 'MaxHourlyPrecipitation', 'HDMaxPrecipitation',
@@ -92,7 +122,7 @@ class ClassicalLSTMModel(nn.Module):
         return self.fc2(x).squeeze(-1)
 
 def load_and_combine_duplicates():
-    file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetHourly.csv'
+    file_path = 'CompleteDatasetHourly.csv'
     df = pd.read_csv(file_path)
     df['date'] = pd.to_datetime(df['date'])
     df.set_index('date', inplace=True)
@@ -193,11 +223,14 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     for feature in top_features:
         if feature in recent_hourly.columns:
             extended = pd.concat([recent_hourly[['ds', feature]], future[['ds']]]).sort_values('ds')
+            extended = extended.drop_duplicates(subset='ds', keep='last')  # <- Important!
             extended = extended.ffill()
-            future[feature] = extended.set_index('ds').loc[future['ds'], feature].values
+            extended = extended.set_index('ds').reindex(future['ds']).ffill()
+            future[feature] = extended[feature].values
         else:
             future[feature] = 0
 
+    future = future.ffill().bfill()
     model.fit(prophet_train)
 
     forecast = model.predict(future)
@@ -489,25 +522,42 @@ def run_single_fold(train_df, test_df, config, fold_id):
     print(f"Stacked Model | RMSE: {stack_rmse:.2f} | MAPE: {stack_mape:.2f}% | PCC: {stack_pcc:.3f}")
 
     return {
-        "fold": fold_id,
-        "train_start": str(train_df['date'].min().date()),
-        "train_end": str(train_df['date'].max().date()),
-        "test_start": str(test_df['date'].min().date()),
-        "test_end": str(test_df['date'].max().date()),
-        "rmse": best_rmse,
-        "mape": best_mape,
-        "pcc": best_pcc,
-        "prophet_baseline_mape": baseline_mape,
-        "stacked_rmse": stack_rmse,
-        "stacked_mape": stack_mape,
-        "stacked_pcc": stack_pcc,
-        "selected_features": selected_features,
-        "forecast_features": forecast_cols,
-        "prophet_config": {
-            "advanced": config.get("use_advanced_prophet", False),
-            "multiplicative": config.get("use_multiplicative_seasonality", False),
-            "n_features_used": config.get("n_features_to_select", 5)
-        }
+    "fold": fold_id,
+    "train_start": str(train_df['date'].min().date()),
+    "train_end": str(train_df['date'].max().date()),
+    "test_start": str(test_df['date'].min().date()),
+    "test_end": str(test_df['date'].max().date()),
+
+    # Main ("best") model = the STACK
+    "rmse": stack_rmse,
+    "mape": stack_mape,
+    "pcc": stack_pcc,
+
+    # Individual model results
+    "cls_rmse": cls_rmse if config.get("run_classical_lstm", True) else None,
+    "cls_mape": cls_mape if config.get("run_classical_lstm", True) else None,
+    "cls_pcc": cls_pcc if config.get("run_classical_lstm", True) else None,
+
+    "qlstm_rmse": qlstm_rmse if config.get("run_quantum_lstm", True) else None,
+    "qlstm_mape": qlstm_mape if config.get("run_quantum_lstm", True) else None,
+    "qlstm_pcc": qlstm_pcc if config.get("run_quantum_lstm", True) else None,
+
+    # Prophet baseline for reference
+    "prophet_baseline_mape": baseline_mape,
+
+    # Stacked model detailed results (duplicated here explicitly)
+    "stacked_rmse": stack_rmse,
+    "stacked_mape": stack_mape,
+    "stacked_pcc": stack_pcc,
+
+    # Metadata
+    "selected_features": selected_features,
+    "forecast_features": forecast_cols,
+    "prophet_config": {
+        "advanced": config.get("use_advanced_prophet", False),
+        "multiplicative": config.get("use_multiplicative_seasonality", False),
+        "n_features_used": config.get("n_features_to_select", 5)
+    }
     }
 
 def save_fold_to_csv(fold_result, csv_path='rocv_results.csv'):
