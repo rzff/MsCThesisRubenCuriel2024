@@ -18,63 +18,36 @@ from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
 from qlstm_pennylane import QLSTM
 
-# Temporary config to test
+
+
+# Original Config
 CONFIG = {
     'seq_len': 48,
-    'batch_size': 32,
+    'batch_size': 64,
     'n_qubits': 4,
     'n_qlayers': 1,
     'dropout_rate': 0.3,
     'learning_rate': 0.001,
-    'epochs': 5,
-    'patience': 3,
-    'min_delta': 0.0001,
-    'start_epoch': 0,
+    'epochs': 25,
+    'patience': 7,
+    'min_delta': 0.00001,
+    'start_epoch': 3,
     'quantum_backend': "lightning.qubit",
-    'target_shift': 168,  # 1 week in hours
+    'target_shift': 770,
     'use_dropout': True,
-    'n_features_to_select': 10,
-    'n_climate_features': 3,
-    'n_econ_features': 5,
-    'hidden_size1': 32,
-    'hidden_size2': 64,
+    'n_features_to_select': 15,
+    'n_climate_features': 4,
+    'n_econ_features': 11,
+    'hidden_size1': 60,
+    'hidden_size2': 120,
     'use_multiplicative_seasonality': True,
-    'use_advanced_prophet': True,
-    'warmup_epochs': 2,
+    'use_advanced_prophet': False,
+    'warmup_epochs': 3,
     'start_fold': 1,
-    'config_version': 'test_run_v1',
+    'config_version': 'v2.1_pcc-aware-es',
     'run_classical_lstm': True,
     'run_quantum_lstm': True
 }
-
-# Original Config
-# CONFIG = {
-#     'seq_len': 48,
-#     'batch_size': 64,
-#     'n_qubits': 4,
-#     'n_qlayers': 1,
-#     'dropout_rate': 0.3,
-#     'learning_rate': 0.001,
-#     'epochs': 25,
-#     'patience': 7,
-#     'min_delta': 0.00001,
-#     'start_epoch': 3,
-#     'quantum_backend': "lightning.qubit",
-#     'target_shift': 770,
-#     'use_dropout': True,
-#     'n_features_to_select': 15,
-#     'n_climate_features': 4,
-#     'n_econ_features': 11,
-#     'hidden_size1': 60,
-#     'hidden_size2': 120,
-#     'use_multiplicative_seasonality': True,
-#     'use_advanced_prophet': False,
-#     'warmup_epochs': 3,
-#     'start_fold': 1,
-#     'config_version': 'v2.1_pcc-aware-es',
-#     'run_classical_lstm': True,
-#     'run_quantum_lstm': True
-# }
 
 CLIMATE_FEATURES = [
     'DailyPrecipitation', 'MaxHourlyPrecipitation', 'HDMaxPrecipitation',
@@ -186,9 +159,9 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     corr = prophet_train.corr(numeric_only=True)['y'].abs().sort_values(ascending=False)
     top_features = [col for col in corr.index if col != 'y'][:config['n_features_to_select']]
 
-    # Add lag-based features
-    prophet_train['lag_1'] = prophet_train['y'].shift(1).bfill()
-    prophet_train['rolling_24'] = prophet_train['y'].rolling(window=24, min_periods=1).mean()
+    # Add lag-based features derived from already shifted 'y'
+    prophet_train['lag_1'] = prophet_train['y'].shift(1).ffill()
+    prophet_train['rolling_24'] = prophet_train['y'].rolling(window=24, min_periods=1).mean().ffill()
     top_features += ['lag_1', 'rolling_24']
 
     # Reorder and drop NaNs
@@ -196,7 +169,7 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     nan_before = prophet_train.shape[0]
     prophet_train = prophet_train.dropna()
     nan_after = prophet_train.shape[0]
-    print(f"Prophet + regressors training loss due to NaNs: {nan_before - nan_after} rows ({(nan_before - nan_after) / nan_before * 100:.2f}%)")
+    print(f"Prophet + regressors training loss due to NaNs: {nan_before - nan_after} rows")
 
     # Create Prophet model
     model = Prophet(
@@ -211,36 +184,43 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     for feature in top_features:
         model.add_regressor(feature)
 
-    # Build future dataframe with regressors
+    # Prepare future DataFrame with same regressors
     forecast_start = forecast_dates.min()
     forecast_end = forecast_dates.max()
     extended_end = forecast_end + pd.to_timedelta(config['target_shift'], unit='h')
     future = pd.DataFrame({'ds': pd.date_range(start=forecast_start, end=extended_end, freq='h')})
 
+    # Recompute lag_1 and rolling_24 from 'y' (which is already shifted!)
     recent_hourly = train_df.copy()
     recent_hourly = recent_hourly.rename(columns={'date': 'ds'})
+    recent_hourly['y'] = recent_hourly['LoadConsumption']  # already shifted
+    recent_hourly['lag_1'] = recent_hourly['y'].shift(1).ffill()
+    recent_hourly['rolling_24'] = recent_hourly['y'].rolling(window=24, min_periods=1).mean().ffill()
 
     for feature in top_features:
         if feature in recent_hourly.columns:
             extended = pd.concat([recent_hourly[['ds', feature]], future[['ds']]]).sort_values('ds')
-            extended = extended.drop_duplicates(subset='ds', keep='last')  # <- Important!
-            extended = extended.ffill()
+            extended = extended.drop_duplicates(subset='ds', keep='last').ffill()
             extended = extended.set_index('ds').reindex(future['ds']).ffill()
             future[feature] = extended[feature].values
         else:
+            print(f"[WARN] Feature {feature} missing in recent_hourly — filled with 0")
             future[feature] = 0
 
     future = future.ffill().bfill()
     model.fit(prophet_train)
 
     forecast = model.predict(future)
-    if (forecast['yhat'] < 0).any():
-        print("Warning: Prophet predicted negative values — check regressor scale and data consistency.")
+    pct_neg = 100.0 * (forecast['yhat'] < 0).mean()
+    if pct_neg > 0:
+        print(f"Warning: {pct_neg:.2f}% of Prophet predictions are negative.")
 
     forecast = forecast[['ds', 'yhat', 'trend', 'weekly', 'yearly']]
     forecast = forecast.rename(columns={'ds': 'date'}).set_index('date')
     forecast = forecast.loc[forecast_dates]
     return forecast
+
+
 
 
 
@@ -372,21 +352,17 @@ def run_single_fold(train_df, test_df, config, fold_id):
 
     # STEP 1: Forecast Prophet for both train and test sets separately
     train_forecast = get_prophet_forecast(train_df, train_df['date'], config)
-    test_forecast = get_prophet_forecast(train_df, test_df['date'], config)  # Prophet trained only on train_df
+    test_forecast = get_prophet_forecast(train_df, test_df['date'], config)
 
     forecast_cols = ['yhat', 'trend', 'weekly', 'yearly']
 
-    # STEP 2: Merge forecasts into train and test sets
     train_df = train_df.set_index('date').merge(train_forecast, how='left', left_index=True, right_index=True).reset_index()
     test_df = test_df.set_index('date').merge(test_forecast, how='left', left_index=True, right_index=True).reset_index()
 
-    # STEP 3: Handle potential missing values
     for col in forecast_cols:
         train_df[col] = train_df[col].ffill().bfill()
         test_df[col] = test_df[col].ffill().bfill()
 
-
-    # Baseline MAPE
     try:
         y_true_baseline = test_df['LoadConsumption'].values
         prophet_yhat = test_df['yhat'].values
@@ -396,19 +372,22 @@ def run_single_fold(train_df, test_df, config, fold_id):
         print(f"Could not compute Prophet baseline MAPE: {e}")
         baseline_mape = None
 
+    print("Prophet prediction stats:")
+    print(" - y_true min/max:", y_true_baseline.min(), y_true_baseline.max())
+    print(" - yhat min/max:", prophet_yhat.min(), prophet_yhat.max())
+    print(" - yhat sample:", prophet_yhat[:5])
+
+    print(">>> Proceeding to LSTM training")
+
     prophet_yhat_unscaled = test_df['yhat'].copy().values
 
-
-    forecast_cols = ['yhat', 'trend', 'weekly', 'yearly']
     selected_features = select_mixed_features_by_corr(
         train_df,
         target_col='LoadConsumption',
         n_climate=config.get('n_climate_features', 3),
         n_econ=config.get('n_econ_features', 2)
     )
-
     final_features = list(dict.fromkeys(selected_features + forecast_cols))
-
 
     scaler = MinMaxScaler().fit(train_df[final_features])
     train_df[final_features] = scaler.transform(train_df[final_features])
@@ -418,8 +397,14 @@ def run_single_fold(train_df, test_df, config, fold_id):
     train_df['LoadConsumption'] = target_scaler.transform(train_df[['LoadConsumption']])
     test_df['LoadConsumption'] = target_scaler.transform(test_df[['LoadConsumption']])
 
-    X_train, y_train = create_sequences(train_df, final_features, config)
-    X_test, y_test = create_sequences(test_df, final_features, config)
+    try:
+        X_train, y_train = create_sequences(train_df, final_features, config)
+        X_test, y_test = create_sequences(test_df, final_features, config)
+    except Exception as e:
+        print(f"[ERROR] Sequence creation failed: {e}")
+        return None
+
+    print(f"X_train shape: {X_train.shape}, X_test shape: {X_test.shape}")
 
     if len(X_train) == 0 or len(X_test) == 0:
         print(f"Skipping fold {fold_id}: Not enough sequence data")
