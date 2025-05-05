@@ -13,10 +13,18 @@ from tqdm import tqdm
 from tqdm import trange
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
 from qlstm_pennylane import QLSTM
+import argparse
+
+# Argument parser to allow fold override
+parser = argparse.ArgumentParser()
+parser.add_argument('--fold', type=int, help='Fold number to run')
+args = parser.parse_args()
+
+
 
 CONFIG = {
     'seq_len': 48,
@@ -32,19 +40,23 @@ CONFIG = {
     'quantum_backend': "lightning.qubit",
     'target_shift': 770,
     'use_dropout': True,
-    'n_features_to_select': 15,
+    'n_features_to_select': 8,
     'n_climate_features': 4,
-    'n_econ_features': 11,
+    'n_econ_features': 4,
     'hidden_size1': 60,
     'hidden_size2': 120,
     'use_multiplicative_seasonality': True,
-    'use_advanced_prophet': False,
+    'use_advanced_prophet': True,
     'warmup_epochs': 3,
-    'start_fold': 1,
+    'start_fold': 2,
     'config_version': 'v2.1_pcc-aware-es',
     'run_classical_lstm': True,
     'run_quantum_lstm': True
 }
+
+# Override start_fold if fold is specified
+if args.fold is not None:
+    CONFIG['start_fold'] = args.fold
 
 CLIMATE_FEATURES = [
     'DailyPrecipitation', 'MaxHourlyPrecipitation', 'HDMaxPrecipitation',
@@ -65,9 +77,9 @@ class QuantumLSTMModel(nn.Module):
         self.fc1 = nn.Linear(config['hidden_size1'], 64)
         self.fc2 = nn.Linear(64, 1)
 
-
     def forward(self, x):
-        x, _ = self.qlstm(x)         # Single QLSTM layer
+        x, _ = self.qlstm(x)              # shape: (batch, seq_len, hidden)
+        x = x[:, -1, :]                   # take last timestep
         x = self.dropout(x)
         x = torch.relu(self.fc1(x))
         return self.fc2(x).squeeze(-1)
@@ -88,7 +100,7 @@ class ClassicalLSTMModel(nn.Module):
         return self.fc2(x).squeeze(-1)
 
 def load_and_combine_duplicates():
-    file_path = '/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/EDA/Notebooks/CompleteDatasetHourly.csv'
+    file_path = 'CompleteDatasetHourly.csv'
     df = pd.read_csv(file_path)
     df['date'] = pd.to_datetime(df['date'])
     df.set_index('date', inplace=True)
@@ -152,9 +164,9 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     corr = prophet_train.corr(numeric_only=True)['y'].abs().sort_values(ascending=False)
     top_features = [col for col in corr.index if col != 'y'][:config['n_features_to_select']]
 
-    # Add lag-based features
-    prophet_train['lag_1'] = prophet_train['y'].shift(1).bfill()
-    prophet_train['rolling_24'] = prophet_train['y'].rolling(window=24, min_periods=1).mean()
+    # Add lag-based features derived from already shifted 'y'
+    prophet_train['lag_1'] = prophet_train['y'].shift(1).ffill()
+    prophet_train['rolling_24'] = prophet_train['y'].rolling(window=24, min_periods=1).mean().ffill()
     top_features += ['lag_1', 'rolling_24']
 
     # Reorder and drop NaNs
@@ -162,7 +174,7 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     nan_before = prophet_train.shape[0]
     prophet_train = prophet_train.dropna()
     nan_after = prophet_train.shape[0]
-    print(f"Prophet + regressors training loss due to NaNs: {nan_before - nan_after} rows ({(nan_before - nan_after) / nan_before * 100:.2f}%)")
+    print(f"Prophet + regressors training loss due to NaNs: {nan_before - nan_after} rows")
 
     # Create Prophet model
     model = Prophet(
@@ -177,33 +189,42 @@ def generate_prophet_forecast_with_regressors(train_df, forecast_dates, config):
     for feature in top_features:
         model.add_regressor(feature)
 
-    # Build future dataframe with regressors
+    # Prepare future DataFrame with same regressors
     forecast_start = forecast_dates.min()
     forecast_end = forecast_dates.max()
     extended_end = forecast_end + pd.to_timedelta(config['target_shift'], unit='h')
     future = pd.DataFrame({'ds': pd.date_range(start=forecast_start, end=extended_end, freq='h')})
 
+    # Recompute lag_1 and rolling_24 from 'y' (which is already shifted!)
     recent_hourly = train_df.copy()
     recent_hourly = recent_hourly.rename(columns={'date': 'ds'})
+    recent_hourly['y'] = recent_hourly['LoadConsumption']  # already shifted
+    recent_hourly['lag_1'] = recent_hourly['y'].shift(1).ffill()
+    recent_hourly['rolling_24'] = recent_hourly['y'].rolling(window=24, min_periods=1).mean().ffill()
 
     for feature in top_features:
         if feature in recent_hourly.columns:
             extended = pd.concat([recent_hourly[['ds', feature]], future[['ds']]]).sort_values('ds')
-            extended = extended.ffill()
-            future[feature] = extended.set_index('ds').loc[future['ds'], feature].values
+            extended = extended.drop_duplicates(subset='ds', keep='last').ffill()
+            extended = extended.set_index('ds').reindex(future['ds']).ffill()
+            future[feature] = extended[feature].values
         else:
+            print(f"[WARN] Feature {feature} missing in recent_hourly — filled with 0")
             future[feature] = 0
 
+    future = future.ffill().bfill()
     model.fit(prophet_train)
 
     forecast = model.predict(future)
-    if (forecast['yhat'] < 0).any():
-        print("Warning: Prophet predicted negative values — check regressor scale and data consistency.")
+    pct_neg = 100.0 * (forecast['yhat'] < 0).mean()
+    if pct_neg > 0:
+        print(f"Warning: {pct_neg:.2f}% of Prophet predictions are negative.")
 
     forecast = forecast[['ds', 'yhat', 'trend', 'weekly', 'yearly']]
     forecast = forecast.rename(columns={'ds': 'date'}).set_index('date')
     forecast = forecast.loc[forecast_dates]
     return forecast
+
 
 
 
@@ -297,7 +318,7 @@ def train_model(train_loader, val_loader, input_size, hidden_size, device,
             model_preds = target_scaler.inverse_transform(model_preds.reshape(-1, 1)).flatten()
             val_targets = target_scaler.inverse_transform(val_targets.reshape(-1, 1)).flatten()
 
-        rmse = mean_squared_error(val_targets, model_preds, squared=False)
+        rmse = rmse = np.sqrt(mean_squared_error(val_targets, model_preds))
         mape = mean_absolute_percentage_error(val_targets, model_preds) * 100
         pcc = np.corrcoef(val_targets, model_preds)[0, 1]
 
@@ -325,7 +346,9 @@ def train_model(train_loader, val_loader, input_size, hidden_size, device,
 
 def run_single_fold(train_df, test_df, config, fold_id):
     train_df = preprocess_data(train_df.copy(), config)
-    test_df = preprocess_data(test_df.copy(), config)
+    # Add lag features used by Prophet regressors
+    test_df['lag_1'] = test_df['LoadConsumption'].shift(1).bfill()
+    test_df['rolling_24'] = test_df['LoadConsumption'].rolling(window=24, min_periods=1).mean()
     train_df = train_df.dropna(subset=['LoadConsumption'])
     test_df = test_df.dropna(subset=['LoadConsumption'])
 
@@ -373,9 +396,18 @@ def run_single_fold(train_df, test_df, config, fold_id):
     final_features = list(dict.fromkeys(selected_features + forecast_cols))
 
 
-    scaler = MinMaxScaler().fit(train_df[final_features])
-    train_df[final_features] = scaler.transform(train_df[final_features])
-    test_df[final_features] = scaler.transform(test_df[final_features])
+    # Sanity check before scaling
+    if train_df[final_features].dropna().shape[0] == 0 or test_df[final_features].dropna().shape[0] == 0:
+        print(f"Fold {fold_id} skipped: insufficient non-NaN data for scaling in selected features.")
+        return None
+
+    try:
+        scaler = MinMaxScaler().fit(train_df[final_features])
+        train_df[final_features] = scaler.transform(train_df[final_features])
+        test_df[final_features] = scaler.transform(test_df[final_features])
+    except ValueError as e:
+        print(f"Scaling error in fold {fold_id}: {e}")
+        return None
 
     target_scaler = MinMaxScaler().fit(train_df[['LoadConsumption']])
     train_df['LoadConsumption'] = target_scaler.transform(train_df[['LoadConsumption']])
@@ -455,34 +487,53 @@ def run_single_fold(train_df, test_df, config, fold_id):
 
 
     # Stacking
-    qlstm_preds, true_targets = [], []
-    if config.get("run_quantum_lstm", True):
-        qlstm_model.eval()
+    stacking_preds, true_targets = [], []
+
+    if config.get("run_quantum_lstm", False):
+        model_for_stack = qlstm_model
+    elif config.get("run_classical_lstm", False):
+        model_for_stack = cls_model
+    else:
+        model_for_stack = None
+
+    if model_for_stack is not None:
+        print("Started stacking")
+        model_for_stack.eval()
         with torch.no_grad():
             for X_val, y_val in test_loader:
                 X_val = X_val.to(device)
-                outputs = qlstm_model(X_val).cpu()
-                qlstm_preds.extend(outputs.numpy())
+                outputs = model_for_stack(X_val).cpu()
+                stacking_preds.extend(outputs.numpy())
                 true_targets.extend(y_val.numpy())
 
-    qlstm_preds = np.array(qlstm_preds).reshape(-1, 1)
-    prophet_preds = prophet_yhat_unscaled[config['seq_len']:config['seq_len'] + len(qlstm_preds)].reshape(-1, 1)
-    true_targets = np.array(true_targets).reshape(-1, 1)
+        stacking_preds = np.array(stacking_preds).reshape(-1, 1)
+        true_targets = np.array(true_targets).reshape(-1, 1)
+        prophet_preds = prophet_yhat_unscaled[config['seq_len']:config['seq_len'] + len(true_targets)].reshape(-1, 1)
 
-    if target_scaler:
-        qlstm_preds = target_scaler.inverse_transform(qlstm_preds)
-        true_targets = target_scaler.inverse_transform(true_targets)
+        if target_scaler:
+            stacking_preds = target_scaler.inverse_transform(stacking_preds)
+            true_targets = target_scaler.inverse_transform(true_targets)
 
-    prophet_preds = prophet_preds[:len(true_targets)]
-    X_stack = np.hstack([prophet_preds, qlstm_preds])
-    meta_model = LinearRegression().fit(X_stack, true_targets)
-    y_meta_pred = meta_model.predict(X_stack)
+        prophet_preds = prophet_preds[:len(true_targets)]
 
-    stack_rmse = np.sqrt(mean_squared_error(true_targets, y_meta_pred))
-    stack_mape = mean_absolute_percentage_error(true_targets, y_meta_pred) * 100
-    stack_pcc, _ = pearsonr(true_targets.flatten(), y_meta_pred.flatten())
+        # --- Stacking ---
+        X_stack = np.hstack([prophet_preds, stacking_preds])
+        meta_model = LinearRegression().fit(X_stack, true_targets)
+        y_meta_pred = meta_model.predict(X_stack)
 
-    print(f"Stacked Model | RMSE: {stack_rmse:.2f} | MAPE: {stack_mape:.2f}% | PCC: {stack_pcc:.3f}")
+        stack_rmse = np.sqrt(mean_squared_error(true_targets, y_meta_pred))
+        stack_mape = mean_absolute_percentage_error(true_targets, y_meta_pred) * 100
+        stack_pcc, _ = pearsonr(true_targets.flatten(), y_meta_pred.flatten())
+
+        print(f"Stacked Model | RMSE: {stack_rmse:.2f} | MAPE: {stack_mape:.2f}% | PCC: {stack_pcc:.3f}")
+
+        results.update({
+            "stacked_rmse": stack_rmse,
+            "stacked_mape": stack_mape,
+            "stacked_pcc": stack_pcc,
+        })
+    else:
+        print("Skipping stacking: no model enabled for stacking.")
 
     return {
         "fold": fold_id,
@@ -490,9 +541,9 @@ def run_single_fold(train_df, test_df, config, fold_id):
         "train_end": str(train_df['date'].max().date()),
         "test_start": str(test_df['date'].min().date()),
         "test_end": str(test_df['date'].max().date()),
-        "rmse": best_rmse,
-        "mape": best_mape,
-        "pcc": best_pcc,
+        "rmse": qlstm_rmse if config.get("run_quantum_lstm", False) else cls_rmse,
+        "mape": qlstm_mape if config.get("run_quantum_lstm", False) else cls_mape,
+        "pcc": qlstm_pcc if config.get("run_quantum_lstm", False) else cls_pcc,
         "prophet_baseline_mape": baseline_mape,
         "stacked_rmse": stack_rmse,
         "stacked_mape": stack_mape,
@@ -541,19 +592,29 @@ def run_rolling_origin_cv(df, config, start_year=2010, final_test_year=2019, res
             all_results.append(fold_result)
             save_fold_to_csv(fold_result)
 
-    with open(results_path, "w") as f:
-        json.dump(all_results, f, indent=4)
+    with open(f"results/fold_{fold_result['fold']}.json", "w") as f:
+        json.dump(fold_result, f, indent=4)
+
 
     print(f"ROCV completed. Results saved to: {results_path}")
 
 if __name__ == "__main__":
-    try:
-        df = load_and_combine_duplicates()
-        df_shifted = preprocess_data(df.copy(), CONFIG)  # For QLSTM only
+    import argparse
 
-        run_rolling_origin_cv(df_shifted, CONFIG, start_year=2010, final_test_year=2019)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fold", type=int, required=True, help="Fold number to run")
+    args = parser.parse_args()
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"DEBUG ERROR: {e}")
+    CONFIG['start_fold'] = args.fold  # Override start_fold to match the single fold
+
+    df = load_and_combine_duplicates()
+    df_shifted = preprocess_data(df.copy(), CONFIG)
+
+    # Run only the specified fold
+    run_rolling_origin_cv(
+        df_shifted,
+        CONFIG,
+        start_year=2010,
+        final_test_year=2010 + args.fold + 1,  # this ensures only that fold runs
+        results_path=f"results/fold_{args.fold}_results.json"
+    )
