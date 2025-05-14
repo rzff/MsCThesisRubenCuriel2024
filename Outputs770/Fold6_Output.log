@@ -1,0 +1,83 @@
+Skipping fold 1 due to config['start_fold'] = 6
+Skipping fold 2 due to config['start_fold'] = 6
+Skipping fold 3 due to config['start_fold'] = 6
+Skipping fold 4 due to config['start_fold'] = 6
+Skipping fold 5 due to config['start_fold'] = 6
+Fold 6 | Training: 2010-01-01 to 2016-12-31 | Testing: 2017-01-01 to 2017-12-31
+Prophet + regressors training loss due to NaNs: 1 rows
+Prophet + regressors training loss due to NaNs: 1 rows
+ Prophet baseline MAPE: 15.96%
+
+>>> Training Classical LSTM for Fold 6
+
+ Used Features in This Fold (18 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - yearly
+ - Month
+ - Week
+ - euro per m3
+ - euro per kWh.1
+ - euro per m3.1
+ - Beroepsbevolking|Seizoengecorrigeerd
+ - Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Huishoudens
+ - trend
+
+
+ Early stopping at epoch 25
+ Classical LSTM Results | RMSE: 2192.78 | MAPE: 14.06% | PCC: 0.524
+
+>>> Training QLSTM for Fold 6
+
+ Used Features in This Fold (18 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - yearly
+ - Month
+ - Week
+ - euro per m3
+ - euro per kWh.1
+ - euro per m3.1
+ - Beroepsbevolking|Seizoengecorrigeerd
+ - Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Huishoudens
+ - trend
+
+weight_shapes = (n_qlayers, n_qubits) = (1, 4)
+
+ Early stopping at epoch 6
+ Quantum LSTM Results   | RMSE: 2681.14 | MAPE: 26.75% | PCC: 0.367
+Fold 6 | Classical LSTM | RMSE: 2192.78 | MAPE: 14.06% | PCC: 0.524
+Fold 6 | Quantum LSTM   | RMSE: 2681.14 | MAPE: 26.75% | PCC: 0.367
+Started stacking
+Stacked Model | RMSE: 2086.59 | MAPE: 13.42% | PCC: 0.400
+ROCV completed. Results saved to: results/fold_6_results.json
+
+JOB STATISTICS
+==============
+Job ID: 11623299
+Array Job ID: 11600814_6
+Cluster: snellius
+User/Group: rcuriel/rcuriel
+State: RUNNING
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 31-03:00:16 core-walltime
+Job Wall-clock time: 1-22:41:16
+Memory Utilized: 0.00 MB
+Memory Efficiency: 0.00% of 32.00 GB (32.00 GB/node)
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.

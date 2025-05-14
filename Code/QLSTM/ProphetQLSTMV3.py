@@ -33,22 +33,22 @@ CONFIG = {
     'n_qlayers': 1,
     'dropout_rate': 0.3,
     'learning_rate': 0.001,
-    'epochs': 25,
-    'patience': 7,
+    'epochs': 50,
+    'patience': 5,
     'min_delta': 0.00001,
     'start_epoch': 3,
     'quantum_backend': "lightning.qubit",
-    'target_shift': 770,
+    'target_shift': 1440,
     'use_dropout': True,
-    'n_features_to_select': 8,
-    'n_climate_features': 4,
-    'n_econ_features': 4,
+    'n_features_to_select': 17,
+    'n_climate_features': 7,
+    'n_econ_features': 10,
     'hidden_size1': 60,
     'hidden_size2': 120,
     'use_multiplicative_seasonality': True,
     'use_advanced_prophet': True,
     'warmup_epochs': 3,
-    'start_fold': 2,
+    'start_fold': 1,
     'config_version': 'v2.1_pcc-aware-es',
     'run_classical_lstm': True,
     'run_quantum_lstm': True
@@ -616,5 +616,5 @@ if __name__ == "__main__":
         CONFIG,
         start_year=2010,
         final_test_year=2010 + args.fold + 1,  # this ensures only that fold runs
-        results_path=f"results/fold_{args.fold}_results.json"
+        results_path=f"results1440/fold_{args.fold}_results.json"
     )
