@@ -1,0 +1,13 @@
+fold,model,rmse,mape,pcc
+1,Classical LSTM,1902.94,15.62,-0.034
+1,QLSTM,2024.85,15.8,-0.144
+1,Stacked Model,1783.96,12.24,0.177
+2,Classical LSTM,2637.6,22.38,0.009
+2,QLSTM,2400.01,21.14,-0.04
+2,Stacked Model,1904.82,13.71,0.138
+3,Classical LSTM,1947.66,18.42,0.301
+3,QLSTM,1982.25,12.45,-0.013
+3,Stacked Model,1960.67,12.73,0.03
+4,Classical LSTM,3056.46,28.67,0.24
+4,QLSTM,2258.16,22.76,0.154
+4,Stacked Model,1832.74,11.49,0.2

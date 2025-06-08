@@ -1,0 +1,80 @@
+Skipping fold 1 due to config['start_fold'] = 5
+Skipping fold 2 due to config['start_fold'] = 5
+Skipping fold 3 due to config['start_fold'] = 5
+Skipping fold 4 due to config['start_fold'] = 5
+Fold 5 | Training: 2010-01-01 to 2015-12-31 | Testing: 2016-01-01 to 2016-12-31
+Prophet + regressors training loss due to NaNs: 1 rows
+Prophet + regressors training loss due to NaNs: 1 rows
+ Prophet baseline MAPE: 19.55%
+
+>>> Training Classical LSTM for Fold 5
+
+ Used Features in This Fold (17 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - Month
+ - Week
+ - yearly
+ - euro per m3
+ - trend
+ - euro per kWh.1
+ - euro per m3.1
+ - euro per kWh.2
+
+
+ Early stopping at epoch 7
+ Classical LSTM Results | RMSE: 2148.86 | MAPE: 16.86% | PCC: 0.400
+
+>>> Training QLSTM for Fold 5
+
+ Used Features in This Fold (17 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - Month
+ - Week
+ - yearly
+ - euro per m3
+ - trend
+ - euro per kWh.1
+ - euro per m3.1
+ - euro per kWh.2
+
+weight_shapes = (n_qlayers, n_qubits) = (1, 4)
+
+ Early stopping at epoch 6
+ Quantum LSTM Results   | RMSE: 2400.58 | MAPE: 19.58% | PCC: 0.377
+Fold 5 | Classical LSTM | RMSE: 2148.86 | MAPE: 16.86% | PCC: 0.400
+Fold 5 | Quantum LSTM   | RMSE: 2400.58 | MAPE: 19.58% | PCC: 0.377
+Started stacking
+Stacked Model | RMSE: 2100.61 | MAPE: 13.78% | PCC: 0.411
+ROCV completed. Results saved to: results/fold_5_results.json
+
+JOB STATISTICS
+==============
+Job ID: 11615629
+Array Job ID: 11600814_5
+Cluster: snellius
+User/Group: rcuriel/rcuriel
+State: RUNNING
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 27-07:03:12 core-walltime
+Job Wall-clock time: 1-16:56:27
+Memory Utilized: 0.00 MB
+Memory Efficiency: 0.00% of 32.00 GB (32.00 GB/node)
+WARNING: Efficiency statistics can only be obtained after the job has ended as seff tool is based on the accounting database data.

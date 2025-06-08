@@ -1,0 +1,78 @@
+Skipping fold 1 due to config['start_fold'] = 4
+Skipping fold 2 due to config['start_fold'] = 4
+Skipping fold 3 due to config['start_fold'] = 4
+Fold 4 | Training: 2010-01-01 to 2014-12-31 | Testing: 2015-01-01 to 2015-12-31
+Prophet + regressors training loss due to NaNs: 1 rows
+Prophet + regressors training loss due to NaNs: 1 rows
+ Prophet baseline MAPE: 15.36%
+
+>>> Training Classical LSTM for Fold 4
+
+ Used Features in This Fold (17 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - yearly
+ - Month
+ - Week
+ - trend
+ - euro per m3
+ - euro per kWh.2
+ - euro per kWh.1
+ - euro per m3.1
+
+
+ Early stopping at epoch 7
+ Classical LSTM Results | RMSE: 2174.97 | MAPE: 18.77% | PCC: 0.548
+
+>>> Training QLSTM for Fold 4
+
+ Used Features in This Fold (17 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - yearly
+ - Month
+ - Week
+ - trend
+ - euro per m3
+ - euro per kWh.2
+ - euro per kWh.1
+ - euro per m3.1
+
+weight_shapes = (n_qlayers, n_qubits) = (1, 4)
+
+ Early stopping at epoch 12
+ Quantum LSTM Results   | RMSE: 2544.95 | MAPE: 18.74% | PCC: 0.449
+Fold 4 | Classical LSTM | RMSE: 2174.97 | MAPE: 18.77% | PCC: 0.548
+Fold 4 | Quantum LSTM   | RMSE: 2544.95 | MAPE: 18.74% | PCC: 0.449
+Started stacking
+Stacked Model | RMSE: 1723.38 | MAPE: 10.89% | PCC: 0.564
+ROCV completed. Results saved to: results/fold_4_results.json
+
+JOB STATISTICS
+==============
+Job ID: 11600818
+Array Job ID: 11600814_4
+Cluster: snellius
+User/Group: rcuriel/rcuriel
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 15-09:35:42
+CPU Efficiency: 33.35% of 46-04:06:56 core-walltime
+Job Wall-clock time: 2-21:15:26
+Memory Utilized: 1.10 GB
+Memory Efficiency: 3.44% of 32.00 GB (32.00 GB/node)

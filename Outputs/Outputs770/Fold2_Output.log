@@ -1,0 +1,76 @@
+Skipping fold 1 due to config['start_fold'] = 2
+Fold 2 | Training: 2010-01-01 to 2012-12-31 | Testing: 2013-01-01 to 2013-12-31
+Prophet + regressors training loss due to NaNs: 1 rows
+Prophet + regressors training loss due to NaNs: 1 rows
+ Prophet baseline MAPE: 17.12%
+
+>>> Training Classical LSTM for Fold 2
+
+ Used Features in This Fold (17 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - trend
+ - yearly
+ - Week
+ - Month
+ - euro per kWh.2
+ - euro per kWh.1
+ - euro per m3
+ - euro per m3.1
+
+
+ Early stopping at epoch 7
+ Classical LSTM Results | RMSE: 2562.10 | MAPE: 20.08% | PCC: 0.425
+
+>>> Training QLSTM for Fold 2
+
+ Used Features in This Fold (17 total):
+ - DailyPrecipitation
+ - MaxHourlyPrecipitation
+ - HDMaxPrecipitation
+ - DailyMeanTemperature
+ - HourlyMinTemperature
+ - HDMinTemperature
+ - HourlyMaxTemperature
+ - yhat
+ - weekly
+ - trend
+ - yearly
+ - Week
+ - Month
+ - euro per kWh.2
+ - euro per kWh.1
+ - euro per m3
+ - euro per m3.1
+
+weight_shapes = (n_qlayers, n_qubits) = (1, 4)
+
+ Early stopping at epoch 6
+ Quantum LSTM Results   | RMSE: 2303.72 | MAPE: 22.95% | PCC: 0.454
+Fold 2 | Classical LSTM | RMSE: 2562.10 | MAPE: 20.08% | PCC: 0.425
+Fold 2 | Quantum LSTM   | RMSE: 2303.72 | MAPE: 22.95% | PCC: 0.454
+Started stacking
+Stacked Model | RMSE: 1961.48 | MAPE: 12.81% | PCC: 0.586
+ROCV completed. Results saved to: results/fold_2_results.json
+
+JOB STATISTICS
+==============
+Job ID: 11600816
+Array Job ID: 11600814_2
+Cluster: snellius
+User/Group: rcuriel/rcuriel
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 16
+CPU Utilized: 5-02:42:42
+CPU Efficiency: 33.54% of 15-05:50:56 core-walltime
+Job Wall-clock time: 22:51:56
+Memory Utilized: 1.02 GB
+Memory Efficiency: 3.20% of 32.00 GB (32.00 GB/node)

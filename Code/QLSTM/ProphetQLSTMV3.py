@@ -17,6 +17,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, m
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
 from qlstm_pennylane import QLSTM
+from xgboost import XGBRegressor
 import argparse
 
 # Argument parser to allow fold override
@@ -343,6 +344,112 @@ def train_model(train_loader, val_loader, input_size, hidden_size, device,
     model.load_state_dict(best_model_state)
     return model, best_val_rmse, mape, pcc
 
+import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
+from scipy.stats import pearsonr
+from xgboost import XGBRegressor
+import torch
+
+def run_stacking_and_save(
+    model_lstm_for_stack,
+    model_qlstm_for_stack,
+    test_loader,
+    prophet_yhat_unscaled,
+    config,
+    target_scaler,
+    device,
+    fold_year,
+    horizon,
+    output_csv='stacking_comparison_metrics.csv'
+):
+    """
+    Perform stacking separately for a classical LSTM and a QLSTM model,
+    compute performance metrics, and save results to CSV, including fold and horizon.
+
+    Parameters:
+    - model_lstm_for_stack: trained classical LSTM model (or None)
+    - model_qlstm_for_stack: trained QLSTM model (or None)
+    - test_loader: DataLoader providing (X_val, y_val) batches
+    - prophet_yhat_unscaled: numpy array of unscaled Prophet predictions
+    - config: config dict containing 'seq_len'
+    - target_scaler: scaler used to inverse-transform targets (or None)
+    - device: torch device ('cpu' or 'cuda')
+    - fold_year: integer indicating the current CV fold year
+    - horizon: integer forecast horizon (e.g., target_shift)
+    - output_csv: filename to write metrics
+    """
+    results = []
+    stack_models = {
+        'LSTM': model_lstm_for_stack,
+        'QLSTM': model_qlstm_for_stack
+    }
+
+    for model_name, model in stack_models.items():
+        if model is None:
+            continue
+        model.eval()
+        stacking_preds = []
+        true_targets = []
+
+        with torch.no_grad():
+            for X_val, y_val in test_loader:
+                X_val = X_val.to(device)
+                outputs = model(X_val).cpu()
+                stacking_preds.extend(outputs.numpy())
+                true_targets.extend(y_val.numpy())
+
+        stacking_preds = np.array(stacking_preds).reshape(-1, 1)
+        true_targets = np.array(true_targets).reshape(-1, 1)
+
+        # Align Prophet predictions
+        start_idx = config['seq_len']
+        end_idx = start_idx + len(true_targets)
+        prophet_preds = prophet_yhat_unscaled[start_idx:end_idx].reshape(-1, 1)
+
+        if target_scaler:
+            stacking_preds = target_scaler.inverse_transform(stacking_preds)
+            true_targets = target_scaler.inverse_transform(true_targets)
+
+        prophet_preds = prophet_preds[:len(true_targets)]
+
+        # Build stacked features
+        X_stack = np.hstack([prophet_preds, stacking_preds])
+        y_stack = true_targets.ravel()
+
+        # Train XGBoost meta-model
+        meta_model = XGBRegressor(
+            objective='reg:squarederror',
+            n_estimators=100,
+            max_depth=3,
+            learning_rate=0.1,
+            random_state=42
+        )
+        meta_model.fit(X_stack, y_stack)
+        y_meta_pred = meta_model.predict(X_stack)
+
+        rmse = np.sqrt(mean_squared_error(true_targets, y_meta_pred))
+        mape = mean_absolute_percentage_error(true_targets, y_meta_pred) * 100
+        pcc, _ = pearsonr(true_targets.flatten(), y_meta_pred.flatten())
+
+        results.append({
+            'fold': fold_year,
+            'horizon': horizon,
+            'model_type': model_name,
+            'rmse': rmse,
+            'mape (%)': mape,
+            'pearson_corr': pcc
+        })
+
+    results_df = pd.DataFrame(results)
+    # If file exists, append; otherwise, write with header
+    try:
+        existing = pd.read_csv(output_csv)
+        combined = pd.concat([existing, results_df], ignore_index=True)
+        combined.to_csv(output_csv, index=False)
+    except FileNotFoundError:
+        results_df.to_csv(output_csv, index=False)
+
 
 def run_single_fold(train_df, test_df, config, fold_id):
     train_df = preprocess_data(train_df.copy(), config)
@@ -371,7 +478,6 @@ def run_single_fold(train_df, test_df, config, fold_id):
         train_df[col] = train_df[col].ffill().bfill()
         test_df[col] = test_df[col].ffill().bfill()
 
-
     # Baseline MAPE
     try:
         y_true_baseline = test_df['LoadConsumption'].values
@@ -382,10 +488,9 @@ def run_single_fold(train_df, test_df, config, fold_id):
         print(f"Could not compute Prophet baseline MAPE: {e}")
         baseline_mape = None
 
+    # Unscaled Prophet predictions for stacking
     prophet_yhat_unscaled = test_df['yhat'].copy().values
 
-
-    forecast_cols = ['yhat', 'trend', 'weekly', 'yearly']
     selected_features = select_mixed_features_by_corr(
         train_df,
         target_col='LoadConsumption',
@@ -394,7 +499,6 @@ def run_single_fold(train_df, test_df, config, fold_id):
     )
 
     final_features = list(dict.fromkeys(selected_features + forecast_cols))
-
 
     # Sanity check before scaling
     if train_df[final_features].dropna().shape[0] == 0 or test_df[final_features].dropna().shape[0] == 0:
@@ -441,6 +545,7 @@ def run_single_fold(train_df, test_df, config, fold_id):
         }
     }
 
+    # Train Classical LSTM if enabled
     if config.get("run_classical_lstm", True):
         print(f"\n>>> Training Classical LSTM for Fold {fold_id}")
         cls_model, cls_rmse, cls_mape, cls_pcc = train_model(
@@ -456,7 +561,11 @@ def run_single_fold(train_df, test_df, config, fold_id):
         })
         print(f" Classical LSTM Results | RMSE: {cls_rmse:.2f} | MAPE: {cls_mape:.2f}% | PCC: {cls_pcc:.3f}")
 
+    else:
+        cls_model = None
+        cls_rmse = cls_mape = cls_pcc = None
 
+    # Train QLSTM if enabled
     if config.get("run_quantum_lstm", True):
         print(f"\n>>> Training QLSTM for Fold {fold_id}")
         qlstm_model, qlstm_rmse, qlstm_mape, qlstm_pcc = train_model(
@@ -472,90 +581,32 @@ def run_single_fold(train_df, test_df, config, fold_id):
         })
         print(f" Quantum LSTM Results   | RMSE: {qlstm_rmse:.2f} | MAPE: {qlstm_mape:.2f}% | PCC: {qlstm_pcc:.3f}")
 
-
-    # Prepare the sliced Prophet predictions (for stacking + hybrid loss)
-
-    used_features = final_features
-
-
-
-    if config.get("run_classical_lstm", False):
-        print(f"Fold {fold_id} | Classical LSTM | RMSE: {cls_rmse:.2f} | MAPE: {cls_mape:.2f}% | PCC: {cls_pcc:.3f}")
-
-    if config.get("run_quantum_lstm", False):
-        print(f"Fold {fold_id} | Quantum LSTM   | RMSE: {qlstm_rmse:.2f} | MAPE: {qlstm_mape:.2f}% | PCC: {qlstm_pcc:.3f}")
-
-
-    # Stacking
-    stacking_preds, true_targets = [], []
-
-    if config.get("run_quantum_lstm", False):
-        model_for_stack = qlstm_model
-    elif config.get("run_classical_lstm", False):
-        model_for_stack = cls_model
     else:
-        model_for_stack = None
+        qlstm_model = None
+        qlstm_rmse = qlstm_mape = qlstm_pcc = None
 
-    if model_for_stack is not None:
-        print("Started stacking")
-        model_for_stack.eval()
-        with torch.no_grad():
-            for X_val, y_val in test_loader:
-                X_val = X_val.to(device)
-                outputs = model_for_stack(X_val).cpu()
-                stacking_preds.extend(outputs.numpy())
-                true_targets.extend(y_val.numpy())
+    # Stacking: pass both models to the function
+    run_stacking_and_save(
+        model_lstm_for_stack=cls_model,
+        model_qlstm_for_stack=qlstm_model,
+        test_loader=test_loader,
+        prophet_yhat_unscaled=prophet_yhat_unscaled,
+        config=config,
+        target_scaler=target_scaler,
+        device=device,
+        fold_year=fold_id,
+        horizon=config['target_shift'],
+        output_csv='stacking_comparison_metrics.csv'
+    )
 
-        stacking_preds = np.array(stacking_preds).reshape(-1, 1)
-        true_targets = np.array(true_targets).reshape(-1, 1)
-        prophet_preds = prophet_yhat_unscaled[config['seq_len']:config['seq_len'] + len(true_targets)].reshape(-1, 1)
+    # Optionally add stacking metrics to results dict if needed
+    results.update({
+        "stacked_rmse": None,
+        "stacked_mape": None,
+        "stacked_pcc": None
+    })
 
-        if target_scaler:
-            stacking_preds = target_scaler.inverse_transform(stacking_preds)
-            true_targets = target_scaler.inverse_transform(true_targets)
-
-        prophet_preds = prophet_preds[:len(true_targets)]
-
-        # --- Stacking ---
-        X_stack = np.hstack([prophet_preds, stacking_preds])
-        meta_model = LinearRegression().fit(X_stack, true_targets)
-        y_meta_pred = meta_model.predict(X_stack)
-
-        stack_rmse = np.sqrt(mean_squared_error(true_targets, y_meta_pred))
-        stack_mape = mean_absolute_percentage_error(true_targets, y_meta_pred) * 100
-        stack_pcc, _ = pearsonr(true_targets.flatten(), y_meta_pred.flatten())
-
-        print(f"Stacked Model | RMSE: {stack_rmse:.2f} | MAPE: {stack_mape:.2f}% | PCC: {stack_pcc:.3f}")
-
-        results.update({
-            "stacked_rmse": stack_rmse,
-            "stacked_mape": stack_mape,
-            "stacked_pcc": stack_pcc,
-        })
-    else:
-        print("Skipping stacking: no model enabled for stacking.")
-
-    return {
-        "fold": fold_id,
-        "train_start": str(train_df['date'].min().date()),
-        "train_end": str(train_df['date'].max().date()),
-        "test_start": str(test_df['date'].min().date()),
-        "test_end": str(test_df['date'].max().date()),
-        "rmse": qlstm_rmse if config.get("run_quantum_lstm", False) else cls_rmse,
-        "mape": qlstm_mape if config.get("run_quantum_lstm", False) else cls_mape,
-        "pcc": qlstm_pcc if config.get("run_quantum_lstm", False) else cls_pcc,
-        "prophet_baseline_mape": baseline_mape,
-        "stacked_rmse": stack_rmse,
-        "stacked_mape": stack_mape,
-        "stacked_pcc": stack_pcc,
-        "selected_features": selected_features,
-        "forecast_features": forecast_cols,
-        "prophet_config": {
-            "advanced": config.get("use_advanced_prophet", False),
-            "multiplicative": config.get("use_multiplicative_seasonality", False),
-            "n_features_used": config.get("n_features_to_select", 5)
-        }
-    }
+    return results
 
 def save_fold_to_csv(fold_result, csv_path='rocv_results.csv'):
     file_exists = os.path.isfile(csv_path)

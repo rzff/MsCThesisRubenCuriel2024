@@ -1,0 +1,38 @@
+{
+    "fold": 1,
+    "train_start": "2010-01-01",
+    "train_end": "2011-11-01",
+    "test_start": "2012-01-01",
+    "test_end": "2012-12-31",
+    "prophet_baseline_mape": 15.997432541519052,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "trend",
+        "yearly",
+        "euro per m3.1",
+        "euro per kWh.1",
+        "euro per m3",
+        "Month",
+        "Week",
+        "euro per kWh.2"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 
