@@ -9,6 +9,7 @@ Totale waarde verkoopprijzen,0.12485672595289728,0.0
 euro per m3.2,-0.12357663325610195,0.0
 "Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Bbp, gecorrigeerd voor werkdageneffecten",0.12163421891655236,0.0
 "Coal, Australian | ($/mt)",-0.118668708628168,0.0
+NAO,0.1171672733075298,0.0
 Jaarmutatie CPI | %,-0.11634445852826762,0.0
 MinHourlyMeanWindspeed,0.1157968295066823,0.0
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Huishoudens,0.1131033435491485,0.0
@@ -17,9 +18,10 @@ Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Brut
 "Natural gas, Europe | ($/mmbtu)",-0.10828142524496143,0.0
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Diensten,0.10340847865581924,0.0
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Totaal,0.10186630528413324,0.0
+sic,0.0968305541085685,0.0
 Natural gas index | (2010=100),-0.09378047055801146,7.2e-322
 DailyMeanWindspeed,0.09112824361219417,5.792084243655821e-304
-Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Totaal,0.08012381187301865,2.987715579778042e-235
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Totaal,0.08012381187301866,2.987715579769882e-235
 Prijsindex verkoopprijzen|Prijsindex bestaande koopwoningen,-0.07611495603773863,1.937968772871087e-212
 euro per m3,-0.07558593143443074,9.323382895489304e-177
 euro per kWh.2,-0.07493204103913431,9.718379843024561e-174
@@ -32,10 +34,11 @@ MaxHourlyMeanWindspeed,0.06333394689601085,1.3760248992716287e-147
 HDMaxPrecipitation,0.06280191475560919,3.7917689931391396e-145
 "Crude oil, average | ($/bbl)",-0.060533132485669154,5.658398889436404e-135
 "Crude oil, Dubai | ($/bbl)",-0.059041267188423785,1.729040314948199e-128
+Werkloze beroepsbevolking|Seizoengecorrigeerd,0.058293942577480135,2.662907367831607e-125
 "Crude oil, Brent | ($/bbl)",-0.056793567659323654,5.033819886745147e-119
 Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Goederen,0.05604650016079136,5.833287064109259e-116
 Aantal verkochte woningen|Ontwikkeling  t.o.v. voorgaande periode,0.05512427489794398,3.1061770386813553e-112
-Aantal verkochte woningen|Ontwikkeling  t.o.v. een jaar eerder,0.054277787457727225,7.210754307544154e-109
+Aantal verkochte woningen|Ontwikkeling  t.o.v. een jaar eerder,0.05427778745772724,7.210754307544154e-109
 Prijsindex verkoopprijzen|Ontwikkeling  t.o.v. voorgaande periode,0.04917333584786546,1.1183374345752935e-89
 euro per kWh,0.04906646826116813,1.7123626077849886e-75
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Overheid,-0.0459965520878958,1.0857316867833912e-78
@@ -43,6 +46,7 @@ CPI afgeleid | 2015 = 100,-0.03972303938808551,3.822577525271513e-59
 euro per m3.1,-0.03795864989504243,6.8860198567691864e-46
 DailyPrecipitation,0.037913084376435785,4.917458682334187e-54
 Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Totaal,0.036653337499219764,1.2824259751023627e-50
+Werkzame beroepsbevolking|Seizoengecorrigeerd,-0.0359722139819936,8.079162149226643e-49
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Goederen,0.03588115441074335,1.397585132092902e-48
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Totaal,0.03571371121021515,3.814853480667155e-48
 HDMaxMeanWindspeed,-0.035598839958994793,7.57676565290887e-48
@@ -50,16 +54,18 @@ Prijsindex verkoopprijzen|Ontwikkeling  t.o.v. een jaar eerder,-0.03381825937905
 "Liquefied natural gas, Japan | ($/mmbtu)",-0.033302323181929556,4.337212991883574e-42
 CPI | 2015 = 100,-0.0327995388293365,7.02997832349485e-41
 "Natural gas, US | ($/mmbtu)",-0.03158523378583157,4.936827689740059e-38
-Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden,-0.024321207243664475,3.1849515468617613e-23
+Beroepsbevolking|Seizoengecorrigeerd,-0.024592162211647648,1.044263824572842e-23
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden,-0.024321207243664468,3.1849515468617613e-23
 HDMaxTemperature,-0.021035754227092952,9.04752938771008e-18
 HDMinMeanWindspeed,0.02075113257252308,2.4693931734917813e-17
 HDMinTemperature,0.017969308964516217,2.238663828308213e-13
+WeekKey,-0.0163467292791701,2.533684836286089e-11
 Year,-0.01605550452221613,5.6568893383513915e-11
-Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Diensten,0.012564995420643408,2.930424359148923e-07
-Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Overheid,-0.01186780950111972,1.276872538085762e-06
+Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Invoer van goederen en diensten|Diensten,0.012564995420643398,2.930424359148923e-07
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Consumptieve bestedingen|Overheid,-0.011867809501119724,1.276872538085762e-06
 Month,-0.011039540858222958,6.628619061213674e-06
 Week,-0.010811511611897678,1.0231954496417288e-05
-nat,-0.004359599619772033,0.07521958538562229
+nat,-0.004359599619772024,0.07521958538562229
 MaxHourlyPrecipitation,0.003901312585206536,0.11136274506038728
-Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Totaal,-0.0011022568583569424,0.6528391116460726
+Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Totaal,-0.0011022568583569441,0.6528391116460726
 Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Bedrijven en huishoudens,0.00018195683738506964,0.9408074822203246

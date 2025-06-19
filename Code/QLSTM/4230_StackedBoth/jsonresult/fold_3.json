@@ -1,0 +1,47 @@
+{
+    "fold": 3,
+    "train_start": "2010-01-01",
+    "train_end": "2013-07-04",
+    "test_start": "2014-01-01",
+    "test_end": "2014-12-31",
+    "prophet_baseline_mape": 21.58008988908632,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "trend",
+        "Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Bbp, gecorrigeerd voor werkdageneffecten",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Totaal",
+        "Werkzame beroepsbevolking|Seizoengecorrigeerd",
+        "Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Bruto binnenlands product",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Totaal",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Bedrijven en huishoudens"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 2179.0813431352212,
+    "cls_mape": 18.244758248329163,
+    "cls_pcc": 0.5512723593741271,
+    "qlstm_rmse": 2220.9226686222105,
+    "qlstm_mape": 15.674568712711334,
+    "qlstm_pcc": 0.40505615593936695,
+    "stacked_rmse": null,
+    "stacked_mape": null,
+    "stacked_pcc": null
+}

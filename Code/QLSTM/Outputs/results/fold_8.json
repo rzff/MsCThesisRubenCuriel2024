@@ -1,7 +1,0 @@
-{
-    "fold": 8,
-    "train_start": "2010-01-01",
-    "train_end": "2018-11-01",
-    "test_start": "2019-01-01",
-    "test_end": "2019-12-31",
-    "rmse": 

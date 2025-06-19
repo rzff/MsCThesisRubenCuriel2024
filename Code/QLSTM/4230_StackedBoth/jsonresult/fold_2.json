@@ -1,0 +1,47 @@
+{
+    "fold": 2,
+    "train_start": "2010-01-01",
+    "train_end": "2012-07-04",
+    "test_start": "2013-01-01",
+    "test_end": "2013-12-31",
+    "prophet_baseline_mape": 20.411475990154873,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "trend",
+        "yearly",
+        "Gemiddelde verkoopprijs",
+        "Opbouw bbp vanuit de finale bestedingen|Beschikbaar voor finale bestedingen|Bbp, gecorrigeerd voor werkdageneffecten",
+        "Werkzame beroepsbevolking|Seizoengecorrigeerd",
+        "euro per kWh.2",
+        "Prijsindex verkoopprijzen|Ontwikkeling  t.o.v. voorgaande periode",
+        "Beroepsbevolking|Seizoengecorrigeerd"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 2230.4246232500213,
+    "cls_mape": 45.92341482639313,
+    "cls_pcc": 0.37570706406497956,
+    "qlstm_rmse": 1843.2486267457248,
+    "qlstm_mape": 34.40053164958954,
+    "qlstm_pcc": 0.6050928395838854,
+    "stacked_rmse": null,
+    "stacked_mape": null,
+    "stacked_pcc": null
+}

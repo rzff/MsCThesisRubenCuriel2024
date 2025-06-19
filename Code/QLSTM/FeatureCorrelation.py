@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-FeatureCorrelation.py – produce correlation heat‑maps for **both** fold
-schemes in a single run (no flags needed).
+FeatureCorrelation.py – produce correlation heat‑maps for full feature‑feature (including target) correlations
+for each fold scheme in a single run.
 
 Running
     python FeatureCorrelation.py
-creates:
-• CSV + per-fold heat‑maps for the 4-fold 2019-2024 scheme
-• CSV + per-fold heat‑maps for the 8-fold 2010-2019 scheme
+creates, for each scheme:
+• CSV + per‑fold heat‑maps of the correlation matrix (features + target)
+• A legend CSV mapping original feature names to wrapped labels
 
-Heat‑maps auto‑size so axis labels never clip.
+Heat‑maps auto‑size and wrap labels so long names don't clip.
 """
 
 from __future__ import annotations
 
+import textwrap
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,16 +34,12 @@ from ProphetQLSTMV3 import (
 )
 
 TARGET = "LoadConsumption"
-PROPHET_COLS = ["yhat", "trend", "weekly", "yearly"]
 SCHEMES = {
-    "4folds_2019_2024": dict(n_folds=4, start="2019-01-01", end="2024-01-01"),
-    "8folds_2010_2019": dict(n_folds=8, start="2010-01-01", end="2019-01-01"),
-}
+    "4230Hours_2010_2024": dict(n_folds=13, start="2010-01-01", end="2024-01-01")}
 
 # ─── helper functions ─────────────────────────────────────────────────────
 
 def _get_datetime_series(df: pd.DataFrame) -> pd.Series:
-    """Return a datetime Series for the DataFrame (index or common column names)."""
     if pd.api.types.is_datetime64_any_dtype(df.index):
         return pd.Series(df.index, index=df.index)
     for col in ("ds", "date", "timestamp", "datetime"):
@@ -58,7 +55,7 @@ def split_into_folds(df: pd.DataFrame, *, n_folds: int, start: str, end: str) ->
     fold_len = len(df_slice) // n_folds
     if fold_len < 2:
         raise ValueError("Fold length < 2; adjust date range or fold count.")
-    return [df_slice.iloc[i * fold_len : (i + 1) * fold_len] for i in range(n_folds)]
+    return [df_slice.iloc[i * fold_len:(i + 1) * fold_len] for i in range(n_folds)]
 
 
 def safe_pearson(x: np.ndarray, y: np.ndarray) -> float | None:
@@ -69,194 +66,141 @@ def safe_pearson(x: np.ndarray, y: np.ndarray) -> float | None:
     return r
 
 
-def correlations_for_fold(
-    fold_df: pd.DataFrame, n_climate: int, n_econ: int
-) -> List[Tuple[str, float]]:
-    # ── Replicate ProphetQLSTMV3 regressor selection ──
-    prophet_train = fold_df.copy().rename(columns={'date': 'ds', 'LoadConsumption': 'y'})
-    prophet_train['lag_1'] = prophet_train['y'].shift(1).ffill()
-    prophet_train['rolling_24'] = prophet_train['y'].rolling(window=24, min_periods=1).mean().ffill()
-    before_drop = prophet_train.shape[0]
-    prophet_train = prophet_train.dropna()
-    after_drop = prophet_train.shape[0]
-    print(f"[Diagnostic] Prophet train rows dropped due to NaNs: {before_drop - after_drop}")
-    corr_vals = prophet_train.corr(numeric_only=True)['y'].abs().sort_values(ascending=False)
-    n_feat = CONFIG.get('n_features_to_select', 0)
-    top_regressors = [c for c in corr_vals.index if c != 'y'][:n_feat]
-    for lf in ['lag_1', 'rolling_24']:
-        if lf not in top_regressors:
-            top_regressors.append(lf)
-    print(f"[Diagnostic] selected regressors: {top_regressors}")
-
-    # Base climate/econ feature selection
-    sel = select_mixed_features_by_corr(
-        fold_df,
-        target_col=TARGET,
-        n_climate=n_climate,
-        n_econ=n_econ,
+def select_features(fold_df: pd.DataFrame) -> List[str]:
+    climate_econ = select_mixed_features_by_corr(
+        fold_df, target_col=TARGET,
+        n_climate=CONFIG.get("n_climate_features", 7),
+        n_econ=CONFIG.get("n_econ_features", 10),
     )
-    print(f"[Diagnostic] select_mixed_features_by_corr selected: {sel}")
-
-    # Combine with Prophet regressors
-    sel += [c for c in top_regressors if c in fold_df.columns and c not in sel]
-    print(f"[Diagnostic] features after including regressors: {sel}")
-
-    out: List[Tuple[str, float]] = []
-    for feat in sel:
-        if feat not in fold_df.columns:
-            print(f"[Diagnostic] skipping {feat}: not in DataFrame")
-            continue
-        if fold_df[feat].dtype.kind not in "fi":
-            fold_df[feat] = pd.to_numeric(fold_df[feat], errors="coerce")
-        if fold_df[feat].dtype.kind not in "fi":
-            print(f"[Diagnostic] skipping {feat}: non-numeric after coercion")
-            continue
-        r = safe_pearson(fold_df[feat].values, fold_df[TARGET].values)
-        if r is None:
-            print(f"[Diagnostic] insufficient finite data for {feat}, setting r=0.0")
-            r = 0.0
-        out.append((feat, r))
-    return out
+    diag = fold_df.rename(columns={"date":"ds", TARGET:"y"}).copy()
+    diag["lag_1"] = diag["y"].shift(1).ffill()
+    diag["rolling_24"] = diag["y"].rolling(window=24, min_periods=1).mean().ffill()
+    diag = diag.dropna()
+    corr_vals = diag.corr(numeric_only=True)["y"].abs().sort_values(ascending=False)
+    top = [c for c in corr_vals.index if c != "y"][ : CONFIG.get("n_features_to_select",0) ]
+    for lf in ("lag_1","rolling_24"):
+        if lf not in top:
+            top.append(lf)
+    features = list(dict.fromkeys(climate_econ + top))
+    return [f for f in features if f in fold_df.columns]
 
 
-def compute_prophet_only_correlation(
-    fold_df: pd.DataFrame
-) -> dict[str, float]:
+def compute_feature_correlation_matrix(
+    fold_df: pd.DataFrame, features: List[str]
+) -> pd.DataFrame:
+    cols = [TARGET] + features
+    df_num = fold_df[cols].apply(pd.to_numeric, errors='coerce')
+    return df_num.corr()
+
+
+def smart_wrap(label: str, width: int = 30, max_lines: int = 3) -> str:
     """
-    Compute Pearson correlations between Prophet forecast columns and the target separately.
-    Returns a dict mapping each PROPHET_COL to its Pearson r.
+    Wrap `label` into lines of max `width` chars, but no more than `max_lines`.
+    If it overflows, we truncate and add an ellipsis.
     """
-    # Generate Prophet forecasts
-    forecast_dates = _get_datetime_series(fold_df)
-    prophet_df = get_prophet_forecast(fold_df.copy(), forecast_dates, CONFIG)
-    # Merge back
-    merged = pd.concat([fold_df, prophet_df], axis=1)
-    results: dict[str, float] = {}
-    for col in PROPHET_COLS:
-        if col not in merged.columns:
-            results[col] = float('nan')
-            continue
-        x = pd.to_numeric(merged[col], errors='coerce').values
-        y = pd.to_numeric(merged[TARGET], errors='coerce').values
-        r = safe_pearson(x, y)
-        results[col] = r if r is not None else 0.0
-        print(f"[Diagnostic] Prophet-only corr {col}: {results[col]:.4f}")
-    return results
+    wrapper = textwrap.TextWrapper(width=width)
+    lines = wrapper.wrap(label)
+    if len(lines) > max_lines:
+        # keep first (max_lines‒1) lines, then ellipsize the last
+        truncated = lines[: max_lines]
+        # merge any leftover text onto the last line with “…”
+        remainder = " ".join(lines[max_lines:])
+        truncated[-1] = truncated[-1].rstrip() + "…"
+        # you could also append part of `remainder`, but ellipsis is fine
+        return "\n".join(truncated)
+    return "\n".join(lines)
 
+def plot_heatmap(
+    data: pd.DataFrame, scheme: str, fold_idx: int, title: str, filename: Path
+) -> None:
+    if data.empty:
+        return
 
-def build_correlation_table(
-    folds: List[pd.DataFrame], *, n_climate: int, n_econ: int
-):
-    per_fold: List[dict[str, float]] = []
-    # Ensure Prophet cols appear in table even if correlation is zero
-    union_feats: set[str] = set(PROPHET_COLS)
-    for i, fld in enumerate(folds, start=1):
-        print(f"\n[Diagnostic] Building correlations for Fold-{i}")
-        d = dict(correlations_for_fold(fld, n_climate, n_econ))
-        per_fold.append(d)
-        union_feats.update(d)
-    if not union_feats:
-        raise RuntimeError("No correlations computed – check selector or data.")
-    wide = pd.DataFrame(index=sorted(union_feats))
-    for idx, d in enumerate(per_fold, start=1):
-        wide[f"Fold-{idx}"] = pd.Series(d)
-    wide.fillna(0.0, inplace=True)
-    print(f"[Diagnostic] final correlation table index: {list(wide.index)}")
-    return wide, per_fold
+    # 1) Apply smart_wrap to index & columns
+    wrapped_index = [smart_wrap(lbl) for lbl in data.index]
+    wrapped_cols  = [smart_wrap(lbl) for lbl in data.columns]
+    data_plot = data.copy()
+    data_plot.index  = wrapped_index
+    data_plot.columns = wrapped_cols
 
-# ─── plotting ─────────────────────────────────────────────────────────────
+    # 2) Size figure based on number of features
+    n = data_plot.shape[0]
+    m = data_plot.shape[1]
+    fig, ax = plt.subplots(
+        figsize=( max(8, m * 0.5), max(8, n * 0.5) ),
+        constrained_layout=True
+    )
 
-def plot_heatmaps(per_fold: List[dict[str, float]], scheme: str) -> None:
-    for idx, d in enumerate(per_fold, start=1):
-        if not d:
-            print(f"[Diagnostic] no features to plot for Fold-{idx}")
-            continue
-        df = pd.DataFrame({f"Fold-{idx}": d})
-        # Order features alphabetically
-        df = df.reindex(sorted(df.index), axis=0)
-        print(f"[Diagnostic] Heatmap data for Fold-{idx}:\n{df}")
-        longest = max(len(s) for s in df.index)
-        width   = max(5.0, 2.0 + longest * 0.12)
-        height  = max(3.0,       len(df)  * 0.40)
-        fig, ax = plt.subplots(figsize=(width, height))
-        sns.heatmap(df, annot=True, fmt=".2f", cmap="vlag", center=0,
-                     cbar_kws={"label": "Pearson r"}, ax=ax, annot_kws={"size": 8})
-        ax.set_ylabel("")
-        ax.set_xlabel("")
-        plt.title(f"Feature–Target Correlation | {scheme} | Fold {idx}")
-        fig.tight_layout()
-        out_path = Path(f"heatmap_{scheme}_Fold-{idx}.png")
-        plt.savefig(out_path, dpi=300)
-        plt.close(fig)
-        print(f"✓ heat-map saved to {out_path}")
+    # 3) Draw heatmap
+    sns.heatmap(
+        data_plot,
+        annot=True, fmt=".2f",
+        cmap="vlag", center=0,
+        cbar_kws={"label":"Pearson r", "shrink":0.6},
+        linewidths=0.5,
+        ax=ax,
+        annot_kws={"size":6}
+    )
+
+    # 4) Rotate tick labels
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=7)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, ha="right", fontsize=7)
+
+    ax.set_title(f"{title} | {scheme} | Fold {fold_idx}", pad=16, fontsize=10)
+
+    # 5) Save
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(filename, dpi=300)
+    plt.close(fig)
+    print(f"✓ heat-map saved to {filename}")
 
 # ─── scheme runner ────────────────────────────────────────────────────────
 
-def run_for_scheme(name: str, cfg: dict):
+def run_for_scheme(name: str, cfg: dict) -> None:
     print(f"\n=== Processing scheme: {name} ===")
+    out_dir = Path("output") / name
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load & preprocess once
     base_df = preprocess_data(load_and_combine_duplicates().copy(), CONFIG)
     folds = split_into_folds(base_df, **cfg)
     print(f"✓ created {len(folds)} folds")
 
-    enriched_folds: List[pd.DataFrame] = []
     for idx, fld in enumerate(folds, start=1):
-        print(f"[Diagnostic] Generating Prophet forecast for Fold-{idx}")
-        # Diagnostic: mirror regressor selection from ProphetQLSTMV3
-        try:
-            train_for_diag = fld.copy().rename(columns={'date':'ds','LoadConsumption':'y'})
-            # add lag/molative features
-            train_for_diag['lag_1'] = train_for_diag['y'].shift(1).ffill()
-            train_for_diag['rolling_24'] = train_for_diag['y'].rolling(window=24, min_periods=1).mean().ffill()
-            corr_diag = train_for_diag.corr(numeric_only=True)['y'].abs().sort_values(ascending=False)
-            n_feat = CONFIG.get('n_features_to_select', 0)
-            top_feats = [c for c in corr_diag.index if c != 'y'][:n_feat] + ['lag_1', 'rolling_24']
-            print(f"[Diagnostic] regressors selected: {top_feats}")
-        except Exception as ee:
-            print(f"[Diagnostic] failed to select regressors: {ee}")
+        dates = _get_datetime_series(fld)
+        prophet_df = get_prophet_forecast(fld.copy(), dates, CONFIG)
+        fld_enriched = pd.concat([fld, prophet_df], axis=1)
 
-        fld_enriched = fld
-        try:
-            forecast_dates = _get_datetime_series(fld)
-            # Use wrapper to respect advanced/basic logic and correct regressor selection
-            prophet_df = get_prophet_forecast(fld.copy(), forecast_dates, CONFIG)
-            print(f"[Diagnostic] prophet_df columns: {list(prophet_df.columns)}; head:\n{prophet_df.head(3)}")
-            # Compute separate Prophet-only correlations on original fold
-            print(f"[Diagnostic] Prophet-only correlations (pre-merge) for Fold-{idx}:")
-            compute_prophet_only_correlation(fld)
-            fld_enriched = pd.concat([fld, prophet_df], axis=1)
-            # Compute separate Prophet-only correlations
-            print(f"[Diagnostic] Prophet-only correlations for Fold-{idx}:")
-            compute_prophet_only_correlation(fld_enriched)
-            # Store Prophet-only dataframe for inspection
-            merged = pd.concat([fld, prophet_df], axis=1)
-            prophet_only_df = merged[[TARGET] + PROPHET_COLS]
-            # Order columns alphabetically
-            prophet_only_df = prophet_only_df.reindex(sorted(prophet_only_df.columns), axis=1)
-            csv_prophet_only = Path(f"prophet_only_{name}_Fold-{idx}.csv")
-            prophet_only_df.to_csv(csv_prophet_only)
-            print(f"✓ saved Prophet-only data to {csv_prophet_only}")
-            print(f"  • Prophet forecast merged into Fold-{idx} (cols now {fld_enriched.shape[1]})")
-        except Exception as e:
-            print(f"  ! Prophet forecast failed in Fold-{idx} → raw data used ({e})")
-        enriched_folds.append(fld_enriched)
+        features = select_features(fld_enriched)
+        corr_mat = compute_feature_correlation_matrix(fld_enriched, features)
 
-    wide, per_fold = build_correlation_table(
-        enriched_folds,
-        n_climate=CONFIG.get("n_climate_features", 7),
-        n_econ=CONFIG.get("n_econ_features", 10),
-    )
+        # save correlation CSV
+        csv_path = out_dir / f"correlation_matrix_{name}_Fold-{idx}.csv"
+        corr_mat.to_csv(csv_path)
+        print(f"✓ saved correlation matrix to {csv_path}")
 
-    csv_path = Path(f"fold_feature_correlations_{name}.csv")
-    wide.to_csv(csv_path)
-    print(f"✓ correlation table saved to {csv_path}")
+        # build and save legend mapping
+        legend_map = {lbl: "\n".join(textwrap.wrap(lbl, width=20)) for lbl in corr_mat.index}
+        legend_df = pd.DataFrame(
+            list(legend_map.items()), columns=["original_name","wrapped_label"]
+        )
+        legend_path = out_dir / f"legend_{name}_Fold-{idx}.csv"
+        legend_df.to_csv(legend_path, index=False)
+        print(f"✓ saved legend mapping to {legend_path}")
 
-    plot_heatmaps(per_fold, name)
+        # apply wrapping to data
+        wrapped = corr_mat.rename(index=legend_map, columns=legend_map)
+        # plot heatmap
+        plot_heatmap(
+            wrapped,
+            scheme=name,
+            fold_idx=idx,
+            title="Feature–Feature + Target Correlation",
+            filename=out_dir / f"heatmap_full_{name}_Fold-{idx}.png",
+        )
 
 # ─── entrypoint ───────────────────────────────────────────────────────────
 
-def main():
+def main() -> None:
     for scheme, cfg in SCHEMES.items():
         run_for_scheme(scheme, cfg)
     print("\nAll fold schemes processed.")

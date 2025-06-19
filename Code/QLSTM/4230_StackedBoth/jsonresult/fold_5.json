@@ -1,0 +1,47 @@
+{
+    "fold": 5,
+    "train_start": "2010-01-01",
+    "train_end": "2015-07-04",
+    "test_start": "2016-01-01",
+    "test_end": "2016-12-31",
+    "prophet_baseline_mape": 15.197822379268269,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden",
+        "Aantal verkochte woningen|Aantal verkochte woningen",
+        "Totale waarde verkoopprijzen",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Totaal",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Totaal",
+        "Beroepsbevolking|Seizoengecorrigeerd",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Bruto investeringen in vaste activa|Bedrijven en huishoudens",
+        "Gemiddelde verkoopprijs"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 2184.4081578313153,
+    "cls_mape": 13.522689044475555,
+    "cls_pcc": 0.4816361271971815,
+    "qlstm_rmse": 1946.1865917737694,
+    "qlstm_mape": 12.181406468153,
+    "qlstm_pcc": 0.5594598981910028,
+    "stacked_rmse": null,
+    "stacked_mape": null,
+    "stacked_pcc": null
+}

@@ -1,0 +1,47 @@
+{
+    "fold": 1,
+    "train_start": "2010-01-01",
+    "train_end": "2011-07-04",
+    "test_start": "2012-01-01",
+    "test_end": "2012-12-31",
+    "prophet_baseline_mape": 24.437976256610018,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "trend",
+        "Gemiddelde verkoopprijs",
+        "yearly",
+        "Liquefied natural gas, Japan | ($/mmbtu)",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Uitvoer van goederen en diensten|Goederen",
+        "CPI | 2015 = 100",
+        "CPI afgeleid | 2015 = 100",
+        "Beroepsbevolking|Seizoengecorrigeerd"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 2291.8694334538345,
+    "cls_mape": 15.954020619392395,
+    "cls_pcc": 0.5765790103063501,
+    "qlstm_rmse": 2431.9192009604267,
+    "qlstm_mape": 19.62396502494812,
+    "qlstm_pcc": 0.6011366374204015,
+    "stacked_rmse": null,
+    "stacked_mape": null,
+    "stacked_pcc": null
+}

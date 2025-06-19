@@ -1,0 +1,38 @@
+{
+    "fold": 8,
+    "train_start": "2010-01-01",
+    "train_end": "2018-11-01",
+    "test_start": "2019-01-01",
+    "test_end": "2019-12-31",
+    "prophet_baseline_mape": 11.551562738528235,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "Month",
+        "Week",
+        "euro per m3",
+        "yearly",
+        "euro per kWh.1",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden",
+        "CPI afgeleid | 2015 = 100",
+        "CPI | 2015 = 100"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 

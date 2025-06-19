@@ -1,0 +1,47 @@
+{
+    "fold": 6,
+    "train_start": "2010-01-01",
+    "train_end": "2016-07-04",
+    "test_start": "2017-01-01",
+    "test_end": "2017-12-31",
+    "prophet_baseline_mape": 14.902800222149398,
+    "selected_features": [
+        "DailyPrecipitation",
+        "MaxHourlyPrecipitation",
+        "HDMaxPrecipitation",
+        "DailyMeanTemperature",
+        "HourlyMinTemperature",
+        "HDMinTemperature",
+        "HourlyMaxTemperature",
+        "yhat",
+        "weekly",
+        "Opbouw bbp vanuit de finale bestedingen|Finale bestedingen|Nationale finale bestedingen|Verandering in voorraden",
+        "Aantal verkochte woningen|Aantal verkochte woningen",
+        "Totale waarde verkoopprijzen",
+        "Beroepsbevolking|Seizoengecorrigeerd",
+        "Year",
+        "Crude oil, WTI | ($/bbl)",
+        "Aantal verkochte woningen|Ontwikkeling  t.o.v. voorgaande periode",
+        "WeekKey"
+    ],
+    "forecast_features": [
+        "yhat",
+        "trend",
+        "weekly",
+        "yearly"
+    ],
+    "prophet_config": {
+        "advanced": true,
+        "multiplicative": true,
+        "n_features_used": 17
+    },
+    "cls_rmse": 2182.6339592336594,
+    "cls_mape": 12.502965331077576,
+    "cls_pcc": 0.47400730313889555,
+    "qlstm_rmse": 2219.97736474947,
+    "qlstm_mape": 14.34125155210495,
+    "qlstm_pcc": 0.3749468939183499,
+    "stacked_rmse": null,
+    "stacked_mape": null,
+    "stacked_pcc": null
+}
