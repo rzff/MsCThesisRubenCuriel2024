@@ -27,8 +27,8 @@ All models are evaluated using rolling origin cross-validation (ROCV) and optimi
 ## Project Structure
 
 - Code
-  - Notebooks
-  - QLSTM
+  - Notebooks, containing the EDA.
+  - QLSTM, containing the main .py file (ProphetQLSTM.py) and the helper functions (slurm,.py and bash). 
 
  
 ## Requirements
