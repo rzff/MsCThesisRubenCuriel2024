@@ -51,4 +51,4 @@ pip install -r requirements.txt
 ### Run the main Prophet + QLSTM forecasting pipeline
 
 ```bash
-python ProphetQLSTMV3.py
+python ProphetQLSTM.py
