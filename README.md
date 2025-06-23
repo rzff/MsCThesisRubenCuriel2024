@@ -8,8 +8,8 @@ In this repository you find a forecasting pipeline that integrates classical mac
 
 - Classical LSTM models  
 - Quantum LSTM (QLSTM) architectures (based on PennyLane and PyTorch)  
-- Prophet models (with exogenous regressors)  
-- Hybrid ensembles using stacked generalization
+- Prophet models
+- Ensembles using stacked generalization
 
 All models are evaluated using rolling origin cross-validation (ROCV) and optimized through Bayesian hyperparameter tuning.
 
