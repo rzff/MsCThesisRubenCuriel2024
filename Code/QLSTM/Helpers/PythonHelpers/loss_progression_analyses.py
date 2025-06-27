@@ -21,6 +21,7 @@ This script can run in two modes:
        python extract_and_plot_true_losses.py <input_csv>
 """
 import sys, os, re, glob
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -128,6 +129,84 @@ def plot_from_csv(csv_path):
         plt.close()
         print(f'Saved plot: {out_png}')
 
+    # ------------------------------------------------------------------
+    # ► NEW: create summary graphics in ./media/generated_loss_plots
+    # ------------------------------------------------------------------
+    SUM_DIR = os.path.join(out_dir, 'media', 'generated_loss_plots')
+    os.makedirs(SUM_DIR, exist_ok=True)
+
+    # 1) ── Representative fold (lowest quantum-validation loss) ─────────
+    # pick fold with lowest FINAL quantum loss
+    quantum_df = df[df['variant'] == 'quantum']
+    if not quantum_df.empty:
+        rep_fold = (
+            quantum_df
+            .groupby('fold')['loss']
+            .last()          # last row per fold == last batch of last epoch
+            .idxmin()
+        )
+
+        rep_sub = df[df['fold'] == rep_fold]
+        fig, ax = plt.subplots(figsize=(4.5, 3))
+        for var, m, ls in [('classical', 'o', '-'), ('quantum', 'x', '--')]:
+            vdf = rep_sub[rep_sub['variant'] == var]
+            if vdf.empty:
+                continue
+            end_of_epoch = vdf.groupby('epoch')['batch'].idxmax()
+            ax.plot(
+                vdf.loc[end_of_epoch, 'epoch'],
+                vdf.loc[end_of_epoch, 'loss'],
+                marker=m, linestyle=ls, label=var.capitalize()
+            )
+
+        ax.set_title(f'Representative Fold {rep_fold}')
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Validation loss')
+        ax.grid(True)
+        ax.legend()
+        rep_png = os.path.join(SUM_DIR, 'loss_rep_fold.png')
+        fig.tight_layout()
+        fig.savefig(rep_png, dpi=300)
+        plt.close(fig)
+
+        # 2) ── Mean & 95 % CI across 13 folds  ─────────────────────────────
+        # first, align epoch axis (pad shorter runs with NaNs)
+        pivot = (
+            df.groupby(['variant', 'fold', 'epoch'])['loss']
+            .last()      # last batch in epoch
+            .unstack('epoch')
+        )
+
+        mean_loss = pivot.groupby(level='variant').mean(numeric_only=True)
+        sem = pivot.groupby(level='variant').sem(numeric_only=True)
+        ci95 = sem * 1.96
+
+        fig, ax = plt.subplots(figsize=(4.5, 3))
+        for var, ls in [('classical', '-'), ('quantum', '--')]:
+            if var not in mean_loss.index:                 # safeguard
+                continue
+            epochs = mean_loss.columns.astype(int)
+            ax.plot(epochs, mean_loss.loc[var], ls, label=var.capitalize())
+            ax.fill_between(
+                epochs,
+                mean_loss.loc[var] - ci95.loc[var],
+                mean_loss.loc[var] + ci95.loc[var],
+                alpha=0.25
+            )
+
+        ax.set_title('Mean validation loss ±95 % CI')
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Loss')
+        ax.grid(True)
+        ax.legend()
+        mean_png = os.path.join(SUM_DIR, 'loss_mean_ci.png')
+        fig.tight_layout()
+        fig.savefig(mean_png, dpi=300)
+        plt.close(fig)
+
+        print(f'▲ Summary plots saved to: {SUM_DIR}')
+
+
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         # Plotting only
@@ -141,3 +220,45 @@ if __name__ == '__main__':
     else:
         print(__doc__)
         sys.exit(1)
+
+
+
+    # --- path to the consolidated loss CSV you just generated ---
+    csv_path = Path("/Users/ruben/Documents/GitHub/MsCThesisRubenCuriel2024/Code/QLSTM/Results/LossPlotsAndSummary.csv")
+
+    # 1) Load
+    df = pd.read_csv(csv_path)
+
+    # 2) Pick the *last batch* for every (variant, fold, epoch)
+    final_rows = (df
+        .groupby(['variant', 'fold', 'epoch'], as_index=False)
+        .apply(lambda g: g.loc[g['batch'].idxmax()])
+        .reset_index(drop=True))
+
+    # 3) Aggregate across folds  →  mean, SEM, 95 % CI
+    summary = (final_rows
+        .groupby('variant', as_index=False)
+        .agg(mean_loss=('loss', 'mean'),
+             sem_loss =('loss', 'sem')))
+
+    summary['ci95'] = 1.96 * summary['sem_loss']   # 95 % confidence interval
+
+    # 4) Save + print
+    out_csv = csv_path.parent / "final_loss_summary.csv"
+    summary.to_csv(out_csv, index=False)
+    stop_epochs = (df.groupby(['fold', 'variant'])['epoch']
+                     .max()                       # last epoch actually logged
+                     .unstack())                  # columns: classical | quantum
+
+    # Save or print
+    print("===== Last epoch per fold =====")
+    print(stop_epochs)
+
+    # Small summary
+    summary_stop = stop_epochs.agg(['median', 'min', 'max'])
+    print("\n===== Stop-epoch summary =====")
+    print(summary_stop)
+
+    print("\n===== End-of-epoch loss summary =====")
+    print(summary.to_string(index=False))
+    print(f"\n(saved to {out_csv})")

@@ -2,7 +2,7 @@ from skopt import gp_minimize
 from skopt.space import Integer
 from skopt.utils import use_named_args
 import json
-from ProphetQLSTMV3 import run_single_fold, CONFIG, load_and_combine_duplicates, preprocess_data
+from ProphetQLSTM import run_single_fold, CONFIG, load_and_combine_duplicates, preprocess_data
 
 # --- Load and preprocess dataset ---
 df = load_and_combine_duplicates()

@@ -1,0 +1,281 @@
+% \begin{table}[htbp]
+% \centering
+% \caption{Classical vs.\ Quantum performance (1440-hours horizon)}
+% \label{tab:1440-folds}
+% \begin{tabular}{l r r r r r r r r r}
+% \toprule
+% Fold           & RMSE    & MAPE   &  PCC   & Epoch & Quant.~RMSE & Quant.~MAPE & Quant.~PCC & Quant.~Epoch & Baseline \\
+% \midrule
+% Fold-1  & 2077.70 & 15.40  & 0.570  &     7 &     2647.09 &      21.45  &     0.445  &      6  & 15.98   \\
+% Fold-2   & 1885.60 & 12.64  & 0.554  &     7 &     2006.70 &      12.47  &     0.641  &     18  & 17.72   \\
+% Fol-3   & 2043.19 & 20.60  & 0.709  &     9 &     2348.55 &      19.89  &     0.695  &      9  & 15.47   \\
+% Fold-4   & 2207.33 & 19.72  & 0.621  &     6 &     2301.46 &      18.03  &     0.563  &     10  & 13.28   \\
+% Fold-5   & 2613.62 & 15.95  & 0.471  &     9 &     1904.36 &      14.58  &     0.555  &      6  & 15.55   \\
+% Fold-6   & 2355.41 & 17.46  & 0.524  &    8 &     3040.63 &      26.75  &     0.367  &      6  & 14.37   \\
+% Fold-7   & 1702.52 &  9.90  & 0.606  &     7 &     1983.63 &      14.54  &     0.450  &     10  & 14.25\% \\
+% Fold-8   & 2651.86 & 17.15  & 0.219  &     7 &     3007.05 &      18.54  &     0.257  &     10  & 14.25\% \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Prophet Classical LSTM vs.\ Prophet QLSTM performance 2010 -2019 (770-hours horizon)}
+% \label{tab:770-folds}
+% \begin{tabular}{l r r r r r r r r r}
+% \toprule
+% Fold         & RMSE    & MAPE   &  PCC   & Epoch & Quant.~RMSE & Quant.~MAPE & Quant.~PCC & Quant.~Epoch & Baseline \\
+% \midrule
+% Fold-1  & 2216.79 & 18.76  & 0.307  &     7 &     2330.79 &      16.70  &     0.527  &      7  & 17.65   \\
+% Fold-2  & 2562.10 & 20.08  & 0.425  &     7 &     2303.72 &      22.95  &     0.454  &      6  & 17.12   \\
+% Fold-3  & 1909.64 & 12.79  & 0.636  &     7 &     2059.33 &      15.74  &     0.507  &      6  & 16.81   \\
+% Fold-4  & 2174.97 & 18.77  & 0.548  &     7 &     2544.95 &      18.74  &     0.449  &     12  & 12.59   \\
+% Fold-5  & 2148.86 & 16.86  & 0.400  &     7 &     2400.58 &      19.58  &     0.377  &      6  & 14.94   \\
+% Fold-6  & 2192.78 & 14.06  & 0.524  &    25 &     2681.14 &      26.75  &     0.367  &      6  & 15.96   \\
+% Fold-7  & 2486.08 & 19.54  & 0.210  &     7 &     2369.40 &      15.96  &     0.324  &      6  & 14.94\% \\
+% Fold-8  & 2532.29 & 17.48  & 0.230  &     8 &     2291.95 &      19.79  &     0.240  &      6  & 12.59   \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Prophet Classical LSTM vs.\ Prophet QLSTM performance 2019--2024 (770‐hours horizon)}
+% \label{tab:prophet-lstm-qlstm-770}
+% \begin{tabular}{l r r r r r r r r r}
+% \toprule
+% Fold          & RMSE    & MAPE   &  PCC   & Epoch & Quant.~RMSE & Quant.~MAPE & Quant.~PCC & Quant.~Epoch & Baseline \\
+% \midrule
+% Fold 1  & 1990,54 & 12,61  & 0,096  &     4 &     2002,19 &      16,89  &    −0,249  &      4  & 13,18   \\
+% Fold 2   & 2451,51 & 21,88  & 0,025  &     3 &     2655,76 &      23,39  &    −0,141  &      3  & 14,53   \\
+% Fold 3   & 1894,26 & 16,15  & 0,301  &     3 &     1867,89 &      12,06  &     0,219  &      3  & 15,76   \\
+% Fold 4 & 3466,72 & 28,12  & 0,277  &     3 &     2315,73 &      22,65  &     0,244  &      3  & 11,57   \\
+% Fold 1  & 1948,45 & 12,87  & −0,022 &     6 &     2839,04 &      21,33  &     0,138  &      3  & 13,18   \\
+% Fold 2  & 2428,60 & 21,24  & 0,040  &     3 &     2328,96 &      17,72  &     0,037  &      3  & 14,53   \\
+% Fold 3& 1884,91 & 19,42  & 0,301  &     3 &     1948,12 &      12,36  &     0,041  &      3  & 15,76   \\
+% Fold 4 & 2958,77 & 23,01  & 0,245  &     3 &     2576,46 &      27,44  &     0,099  &      3  & 11,57   \\
+% Fold 1 & 1902,94 & 15,62  & −0,034 &     7 &     2024,85 &      15,80  &    −0,144  &      4  & 13,18   \\
+% Fold 2 & 2637,60 & 22,38  & 0,009  &     3 &     2400,01 &      21,14  &    −0,040  &      3  & 14,53   \\
+% Fold 3 & 1947,66 & 18,42  & 0,301  &     3 &     1982,25 &      12,45  &    −0,013  &      3  & 15,76   \\
+% Fold 4  & 3056,46 & 28,67  & 0,240  &     3 &     2258,16 &      22,76  &     0,154  &      3  & 11,57   \\
+% Fold 1   & 2138,83 & 16,03  & −0,047 &     4 &     2355,71 &      20,32  &     0,095  &      3  & 13,18   \\
+% Fold 2   & 2641,58 & 20,44  & 0,062  &     3 &     2708,56 &      30,12  &    −0,108  &      3  & 14,53   \\
+% Fold 3   & 1891,86 & 14,92  & 0,448  &     3 &     1902,68 &      13,10  &     0,181  &      4  & 15,76   \\
+% Fold 4   & 2627,92 & 21,84  & 0,221  &     3 &     2394,19 &      25,51  &     0,189  &      3  & 11,57   \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Prophet Classical LSTM vs.\ Prophet QLSTM performance 2019--2024 (1440‐hours horizon)}
+% \label{tab:prophet-lstm-qlstm-1440}
+% \begin{tabular}{l r r r r r r r r r}
+% \toprule
+% Fold   & RMSE    & MAPE   &  PCC   & Epoch & Quant.~RMSE & Quant.~MAPE & Quant.~PCC & Quant.~Epoch & Baseline \\
+% \midrule
+% Fold 1 & 4495,80 & 55,25  & 0,424  &     3 &     2297,82 &      16,88  &   −0,126   &      3  & 12,98   \\
+% Fold 2 & 2456,48 & 19,56  & −0,108 &     3 &     2449,28 &      22,31  &   −0,143   &      3  & 15,30   \\
+% Fold 3 & 2768,40 & 18,86  & 0,714  &     8 &     2270,54 &      17,57  &    0,658   &     12  & 15,51   \\
+% Fold 4 & 2088,23 & 13,73  & 0,347  &     8 &     1936,80 &      13,08  &    0,363   &     11  & 11,44   \\
+% Fold 1 & 3864,58 & 33,50  & 0,388  &     6 &     1944,03 &      16,62  &    0,036   &      9  & 12,98   \\
+% Fold 2 & 2075,81 & 15,11  & 0,222  &    25 &     2415,80 &      24,34  &    0,179   &      6  & 15,30   \\
+% Fold 3 & 1788,71 & 10,89  & 0,446  &     6 &     1904,48 &      11,17  &    0,376   &     10  & 14,25   \\
+% Fold 4 & 2131,33 & 17,19  & 0,328  &     6 &     2218,26 &      17,28  &    0,035   &      6  & 11,44   \\
+% Fold 1 & 4685,54 & 57,64  & 0,405  &     6 &     2414,28 &      24,64  &    0,253   &      6  & 12,98   \\
+% Fold 2 & 2242,24 & 20,30  & 0,001  &     6 &     2295,09 &      25,34  &    0,171   &      8  & 15,30   \\
+% Fold 3 & 1975,98 & 11,29  & 0,354  &     6 &     1906,54 &      11,29  &    0,354   &      6  & 14,25   \\
+% Fold 4 & 2041,99 & 14,81  & 0,397  &     7 &     1944,74 &      15,39  &    0,267   &      7  & 11,44   \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Prophet + Prophet-QLSTM Stacked model performance metrics (1440-hours horizon)}
+%   \label{tab:stacked_metrics_updated}
+%   \begin{tabular}{lccc}
+%     \toprule
+%     Fold & Stacked\_RMSE & Stacked\_MAPE & Stacked\_PCC \\
+%     \midrule
+%     Fold-1  & 2001,7  & 14,2  & 0,579 \\
+%     Fold-2  & 1841,61 & 11,75 & 0,642 \\
+%     Fold-3  & 1673,53 & 10,33 & 0,695 \\
+%     Fold-4  & 1728,78 & 10,89 & 0,572 \\
+%     Fold-5  & 1912,17 & 11,87 & 0,564 \\
+%     Fold-6  & 1905,51 & 11,91 & 0,544 \\
+%     Fold-7  & 1887,02 & 11,69 & 0,45  \\
+%     Fold-8  & 1847,41 & 12,09 & 0,646 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Prophet + Prophet QLSTM Stacked model performance 2019-2024 (770‐hours horizon)}
+%   \label{tab:stacked_prophet_770}
+%   \begin{tabular}{l c c c}
+%     \toprule
+%     Fold   & Stacked\_RMSE & Stacked\_MAPE & Stacked\_PCC \\
+%     \midrule
+%     Fold 1 & 1733,13 & 11,89 & 0,293 \\
+%     Fold 2 & 1903,48 & 13,95 & 0,143 \\
+%     Fold 3 & 1871,06 & 11,77 & 0,300 \\
+%     Fold 4 & 1810,98 & 11,19 & 0,250 \\
+%     Fold 1 & 1707,07 & 11,49 & 0,336 \\
+%     Fold 2 & 1868,36 & 13,22 & 0,237 \\
+%     Fold 3 & 1958,74 & 12,53 & 0,054 \\
+%     Fold 4 & 1834,62 & 11,59 & 0,195 \\
+%     Fold 1 & 1783,96 & 12,24 & 0,177 \\
+%     Fold 2 & 1904,82 & 13,71 & 0,138 \\
+%     Fold 3 & 1960,67 & 12,73 & 0,030 \\
+%     Fold 4 & 1832,74 & 11,49 & 0,200 \\
+%     Fold 1 & 1687,90 & 11,22 & 0,364 \\
+%     Fold 2 & 1906,79 & 13,92 & 0,131 \\
+%     Fold 3 & 1904,09 & 11,94 & 0,240 \\
+%     Fold 4 & 1827,58 & 11,39 & 0,213 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Prophet + Prophet QLSTM Stacked model performance 2019--2024 (1440‐hours horizon)}
+%   \label{tab:stacked_prophet_1440}
+%   \begin{tabular}{l c c c}
+%     \toprule
+%     Fold   & Stacked\_RMSE & Stacked\_MAPE & Stacked\_PCC \\
+%     \midrule
+%     Fold 1 & 1738.41 & 12.17 & 0.259 \\
+%     Fold 2 & 1884.18 & 13.99 & 0.155 \\
+%     Fold 3 & 1748.79 & 10.87 & 0.661 \\
+%     Fold 4 & 1654.85 & 10.13 & 0.435 \\
+%     Fold 1 & 1772.73 & 12.18 & 0.172 \\
+%     Fold 2 & 1866.42 & 13.94 & 0.206 \\
+%     Fold 3 & 1705.34 & 10.92 & 0.514 \\
+%     Fold 4 & 1668.80 & 10.57 & 0.419 \\
+%     Fold 1 & 1721.66 & 11.97 & 0.291 \\
+%     Fold 2 & 1868.86 & 13.95 & 0.199 \\
+%     Fold 3 & 1875.95 & 11.83 & 0.331 \\
+%     Fold 4 & 1675.73 & 10.38 & 0.411 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+
+
+
+% \begin{table}[htbp]
+%   \centering
+%   \caption{Prophet + Prophet-QLSTM Stacked model performance metrics (770-hours horizon)}
+%   \label{tab:stacked_metrics}
+%   \begin{tabular}{lccc}
+%     \toprule
+%     Fold & Stacked\_RMSE & Stacked\_MAPE & Stacked\_PCC \\
+%     \midrule
+%     Fold-1  & 1847,41 & 12,09 & 0,646 \\
+%     Fold-2  & 1961,48 & 12,81 & 0,586 \\
+%     Fold-3  & 1723,38 & 10,89 & 0,564 \\
+%     Fold-4  & 1723,38 & 10,89 & 0,564 \\
+%     Fold-5  & 2100,61 & 13,78 & 0,411 \\
+%     Fold-6  & 2086,59 & 13,42 & 0,400   \\
+%     Fold-7  & 1873,11 & 11,63 & 0,478 \\
+%     Fold-8  & 1772,85 & 11,23 & 0,349 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+
+% -------- Classic model metrics ----------
+% \begin{table}[H]
+%   \centering
+%   \small
+%   \begin{tabular}{lcccc}
+%     \toprule
+%             & RMSE        & MAPE        & PCC        & Epoch \\ \midrule
+%     Average & 2267,88 & 17,10 & 0,388 & 8,348 \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{Performance metrics for the Prophet LSTM with 770 hours metrics.}
+%   \label{tab:classic_metrics_2}
+% \end{table}
+
+% % -------- Quantum model metrics ----------
+% \begin{table}[H]
+%   \centering
+%   \small
+%   \begin{tabular}{lcccc}
+%     \toprule
+%             & RMSE & MAPE & PCC & Epoch \\ \midrule
+%     Average & 2366,48   & 19,23   & 0,39& 6,67 \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{Performance metrics for the Prophet QLSTM model with 770 hours horizon.}
+%   \label{tab:quantum_metrics_2}
+% \end{table}
+
+% % ---------- Classic model metrics ----------
+% \begin{table}[H]
+%   \centering
+%   \small
+%   \begin{tabular}{lccccc}
+%     \toprule
+%             & RMSE        & MAPE        & PCC        & Epoch       & Baseline \\
+%     \midrule
+%     Average & 2186,91 & 15,87 & 0,52 & 8,72 & 15,17 \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{Performance metrics for the Prophet LSTM with 1440 hours metrics.}
+%   \label{tab:classic\_metrics}
+% \end{table}
+
+% % ---------- Quantum model metrics ----------
+% \begin{table}[H]
+%   \centering
+%   \small
+%   \begin{tabular}{lcccc}
+%     \toprule
+%             & RMSE & MAPE & PCC & Epoch \\
+%     \midrule
+%     Average & 2289,53   & 17,70   & 0,52   & 8,61 \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{Performance metrics for the Prophet QLSTM model with 1440 hours horizon.}
+%   \label{tab:quantum\_metrics}
+% \end{table}
+
+% % ---------- Quantum model metrics ----------
+% \begin{table}[H]
+%   \centering
+%   \small
+%   \begin{tabular}{lccc}
+%     \toprule
+%             & RMSE & MAPE & PCC  \\
+%     \midrule
+%     Average & 1847,06   & 11,80   & 0,58  \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{Performance metrics for the Prophet QLSTM model Stacked with 1440 hours horizon.}
+%   \label{tab:quantum\_metrics}
+% \end{table}
+
+% \begin{table}[H]
+%   \centering
+%   \small
+%   \begin{tabular}{lccc}
+%     \toprule
+%             & RMSE & MAPE & PCC  \\
+%     \midrule
+%     Average & 1772,85   &  11,23  & 0,49  \\
+%     \bottomrule
+%   \end{tabular}
+%   \caption{Performance metrics for the Prophet QLSTM model Stacked with 770 hours horizon.}
+%   \label{tab:quantum\_metrics}
+% \end{table}
